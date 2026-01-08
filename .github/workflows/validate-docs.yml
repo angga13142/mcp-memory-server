@@ -13,6 +13,7 @@ jobs:
   validate:
     name: Validate Monitoring Documentation
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -22,30 +23,32 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
 
       - name: Install dependencies
         run: |
           pip install markdown
           npm install -g markdownlint-cli markdown-link-check
-
+      
+      # (Using relative path as per recent moves)
       - name: Run validation script
         run: |
-          chmod +x scripts/validate_documentation. sh
+          chmod +x scripts/validate_documentation.sh
           ./scripts/validate_documentation.sh
 
       - name: Run Python validator
         run: |
-          python3 scripts/validate_documentation. py
+          python3 scripts/validate_documentation.py
 
       - name: Check for broken links
         run: |
-          for file in docs/monitoring/*.md; do
-            markdown-link-check "$file" --config .markdown-link-check.json
-          done
+          chmod +x scripts/lint_docs.sh
+          # Use find to locate files in docs/ relative to new root structure check
+          find docs/monitoring -name "*.md" -exec markdown-link-check {} --config .markdown-link-check.json \;
 
       - name: Upload validation report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: validation-report
           path: validation-report.txt

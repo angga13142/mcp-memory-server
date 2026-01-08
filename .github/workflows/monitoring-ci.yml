@@ -30,6 +30,7 @@ jobs:
   code-quality:
     name: Code Quality
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -45,7 +46,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install black isort ruff mypy bandit
-          pip install -r requirements/requirements.txt
+          pip install -r config/requirements/requirements.txt
 
       - name: Check code formatting (Black)
         run: |
@@ -76,7 +77,7 @@ jobs:
 
       - name: Upload security report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: security-report
           path: bandit-report.json
@@ -87,6 +88,7 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -102,7 +104,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install pytest pytest-cov pytest-asyncio pytest-timeout
-          pip install -r requirements/requirements.txt
+          pip install -r config/requirements/requirements.txt
 
       - name: Run unit tests
         run: |
@@ -131,7 +133,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: unit-test-results
           path: |
@@ -150,6 +152,7 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     services:
       prometheus:
@@ -198,7 +201,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install pytest pytest-asyncio requests
-          pip install -r requirements/requirements.txt
+          pip install -r config/requirements/requirements.txt
 
       - name: Wait for services
         run: |
@@ -238,7 +241,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: integration-test-results
           path: pytest-report.xml
@@ -250,6 +253,7 @@ jobs:
     name: Load Tests
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event_name == 'schedule'
+    timeout-minutes: 30
 
     services:
       prometheus:
@@ -271,7 +275,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install pytest pytest-asyncio requests psutil
-          pip install -r requirements/requirements.txt
+          pip install -r config/requirements/requirements.txt
 
       - name: Start application
         run: |
@@ -297,7 +301,7 @@ jobs:
 
       - name: Upload load test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: load-test-results
           path: load-test-report.txt
@@ -315,6 +319,7 @@ jobs:
   docs-validation:
     name: Documentation
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -328,7 +333,8 @@ jobs:
       - name: Install documentation tools
         run: |
           npm install -g markdownlint-cli markdown-link-check
-
+      
+      # (Using relative path as per recent moves)
       - name: Lint Markdown files
         run: |
           echo "📝 Linting documentation..."
@@ -345,6 +351,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
 
       - name: Validate system metrics
         run: |
@@ -362,6 +369,7 @@ jobs:
   docker-build:
     name: Docker Build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -373,7 +381,8 @@ jobs:
       - name: Build Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: deploy
+          file: deploy/Dockerfile
           push: false
           tags: mcp-memory-server:${{ github.sha }}
           cache-from: type=gha
@@ -390,6 +399,7 @@ jobs:
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -425,6 +435,7 @@ jobs:
     environment:
       name: staging
       url: https://staging.monitoring.example.com
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -470,6 +481,7 @@ jobs:
     environment:
       name: production
       url: https://monitoring.example.com
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
@@ -537,6 +549,7 @@ jobs:
         docker-build,
       ]
     if: always()
+    timeout-minutes: 5
 
     steps:
       - name: Generate summary
