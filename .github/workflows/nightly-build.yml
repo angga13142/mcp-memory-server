@@ -34,7 +34,8 @@ jobs:
             -v \
             --tb=short \
             --timeout=1800 \
-            --durations=20
+            --durations=20 \
+            --junitxml=pytest-report.xml
 
       - name: Upload test results
         if: always()

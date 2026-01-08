@@ -203,6 +203,11 @@ jobs:
           pip install pytest pytest-asyncio requests
           pip install -r config/requirements/requirements.txt
 
+      - name: Install Redis CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y redis-tools
+
       - name: Wait for services
         run: |
           echo "⏳ Waiting for services to be ready..."
@@ -237,7 +242,8 @@ jobs:
           pytest tests/integration/ \
             -v \
             --tb=short \
-            --timeout=600
+            --timeout=600 \
+            --junitxml=pytest-report.xml
 
       - name: Upload test results
         if: always()
@@ -333,7 +339,7 @@ jobs:
       - name: Install documentation tools
         run: |
           npm install -g markdownlint-cli markdown-link-check
-      
+
       # (Using relative path as per recent moves)
       - name: Lint Markdown files
         run: |
