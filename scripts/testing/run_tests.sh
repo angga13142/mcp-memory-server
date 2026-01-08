@@ -4,75 +4,49 @@ echo "🧪 Running MCP Memory Server Test Suite"
 echo "========================================"
 echo ""
 
-# Color codes
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-# Counters
-PASSED=0
-FAILED=0
-
 # Determine script location and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 cd "$PROJECT_ROOT"
 export PYTHONPATH=.
 
-run_test_suite() {
-    local name=$1
-    local command=$2
-    
-    echo "Running $name..."
-    if eval "$command"; then
-        echo -e "${GREEN}✅ $name PASSED${NC}"
-        ((PASSED++))
-    else
-        echo -e "${RED}❌ $name FAILED${NC}"
-        ((FAILED++))
-    fi
-    echo ""
-}
+# Color codes
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
 
-# Unit Tests
-echo "📦 UNIT TESTS"
-echo "-------------"
-run_test_suite "Model Tests" "pytest tests/unit/test_journal_models.py -v"
-run_test_suite "Repository Tests" "pytest tests/unit/test_journal_repository.py -v"
-run_test_suite "Service Tests" "pytest tests/unit/test_journal_service.py -v"
-run_test_suite "Metrics Tests" "pytest tests/unit/test_metrics.py -v"
-run_test_suite "System Metrics Tests" "pytest tests/unit/test_system_metrics.py -v"
-run_test_suite "System Collector Tests" "pytest tests/unit/test_system_collector.py -v"
-run_test_suite "Load Testing Framework Tests" "pytest tests/unit/test_load_testing_framework.py -v"
+# Run all tests in a SINGLE pytest invocation for maximum efficiency
+# This avoids repeated interpreter startup and module loading overhead
+echo "📦 Running Unit, Integration, and E2E Tests..."
+echo "-----------------------------------------------"
 
-# Integration Tests
-echo "🔗 INTEGRATION TESTS"
-echo "--------------------"
-run_test_suite "Database Integration" "pytest tests/integration/test_journal_database_integration.py -v"
-run_test_suite "Service Integration" "pytest tests/integration/test_journal_service_integration.py -v"
-run_test_suite "MCP Integration" "pytest tests/integration/test_mcp_integration.py -v"
+pytest tests/unit/ tests/integration/ tests/e2e/ \
+    -v \
+    --tb=short \
+    --durations=15 \
+    --ignore=tests/integration/test_load_testing_integration.py \
+    --ignore=tests/integration/test_prometheus_integration.py \
+    --ignore=tests/load/ \
+    --ignore=tests/dr/ \
+    --ignore=tests/ci/ \
+    --ignore=tests/alerts/
 
-# E2E Tests
-echo "🎬 END-TO-END TESTS"
-echo "-------------------"
-run_test_suite "User Scenarios" "pytest tests/e2e/test_user_scenarios.py -v -s"
+RESULT=$?
 
-# Coverage Report
+# Coverage Report (separate run to avoid double-counting)
+echo ""
 echo "📊 GENERATING COVERAGE REPORT"
 echo "------------------------------"
-pytest tests/ --cov=src --cov-report=html --cov-report=term
+pytest tests/unit/ --cov=src --cov-report=term --cov-report=html -q
 
 # Summary
 echo ""
 echo "========================================"
 echo "TEST SUMMARY"
 echo "========================================"
-echo -e "${GREEN}Passed: $PASSED${NC}"
-echo -e "${RED}Failed: $FAILED${NC}"
-echo ""
 
-if [ $FAILED -eq 0 ]; then
+if [ $RESULT -eq 0 ]; then
     echo -e "${GREEN}🎉 ALL TESTS PASSED!${NC}"
     echo "✅ Feature is ready for deployment"
     exit 0

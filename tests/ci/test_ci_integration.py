@@ -13,7 +13,10 @@ class TestLocalCIExecution:
     def test_local_ci_script_runs(self):
         """Test that local CI script executes."""
         result = subprocess.run(
-            ["./scripts/run_ci_locally.sh"], capture_output=True, text=True, timeout=600
+            ["./scripts/ci/run_ci_locally.sh"],
+            capture_output=True,
+            text=True,
+            timeout=600,
         )
 
         # Should complete (may fail, but should execute)
@@ -22,7 +25,10 @@ class TestLocalCIExecution:
     def test_local_ci_checks_formatting(self):
         """Test local CI checks code formatting."""
         result = subprocess.run(
-            ["./scripts/run_ci_locally.sh"], capture_output=True, text=True, timeout=600
+            ["./scripts/ci/run_ci_locally.sh"],
+            capture_output=True,
+            text=True,
+            timeout=600,
         )
 
         output = result.stdout + result.stderr
@@ -33,7 +39,10 @@ class TestLocalCIExecution:
     def test_local_ci_runs_tests(self):
         """Test local CI runs tests."""
         result = subprocess.run(
-            ["./scripts/run_ci_locally.sh"], capture_output=True, text=True, timeout=600
+            ["./scripts/ci/run_ci_locally.sh"],
+            capture_output=True,
+            text=True,
+            timeout=600,
         )
 
         output = result.stdout + result.stderr

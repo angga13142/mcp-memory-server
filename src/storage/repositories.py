@@ -451,6 +451,8 @@ class MemoryEntryRepository:
         )
         return result.rowcount > 0
 
+    def _to_model(self, row: MemoryEntryDB) -> MemoryEntry:
+        """Convert DB row to Pydantic model."""
         return MemoryEntry(
             id=row.id,
             content=row.content,

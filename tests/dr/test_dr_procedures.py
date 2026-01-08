@@ -86,12 +86,12 @@ class TestDRScripts:
 
     def test_simulation_script_exists(self):
         """Test DR simulation script exists."""
-        script_path = Path("scripts/simulate_dr_drill.sh")
+        script_path = Path("scripts/dr/simulate_dr_drill.sh")
         assert script_path.exists()
 
     def test_simulation_script_executable(self):
         """Test simulation script is executable."""
-        script_path = Path("scripts/simulate_dr_drill.sh")
+        script_path = Path("scripts/dr/simulate_dr_drill.sh")
         assert script_path.stat().st_mode & 0o111
 
     def test_validation_script_exists(self):
@@ -113,7 +113,7 @@ class TestDRSimulation:
         """Test simulation script executes without errors."""
         # Use --non-interactive flag for speedier tests
         result = subprocess.run(
-            ["./scripts/simulate_dr_drill.sh", "--non-interactive"],
+            ["./scripts/dr/simulate_dr_drill.sh", "--non-interactive"],
             capture_output=True,
             text=True,
             timeout=300,
@@ -126,7 +126,7 @@ class TestDRSimulation:
         """Test simulation creates expected artifacts."""
         # Run simulation non-interactively
         result = subprocess.run(
-            ["./scripts/simulate_dr_drill.sh", "--non-interactive"],
+            ["./scripts/dr/simulate_dr_drill.sh", "--non-interactive"],
             capture_output=True,
             text=True,
             timeout=300,
@@ -142,7 +142,7 @@ class TestDRSimulation:
     def test_simulation_validates_all_phases(self):
         """Test simulation covers all DR phases."""
         result = subprocess.run(
-            ["./scripts/simulate_dr_drill.sh", "--non-interactive"],
+            ["./scripts/dr/simulate_dr_drill.sh", "--non-interactive"],
             capture_output=True,
             text=True,
             timeout=300,

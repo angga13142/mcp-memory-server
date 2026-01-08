@@ -476,17 +476,17 @@ class TestCIScripts:
 
     def test_local_ci_script_exists(self):
         """Test local CI runner script exists."""
-        script_path = Path("scripts/run_ci_locally.sh")
+        script_path = Path("scripts/ci/run_ci_locally.sh")
         assert script_path.exists()
 
     def test_local_ci_script_executable(self):
         """Test local CI script is executable."""
-        script_path = Path("scripts/run_ci_locally.sh")
+        script_path = Path("scripts/ci/run_ci_locally.sh")
         assert script_path.stat().st_mode & 0o111, "run_ci_locally.sh is not executable"
 
     def test_local_ci_script_has_checks(self):
         """Test local CI script includes required checks."""
-        with open("scripts/run_ci_locally.sh") as f:
+        with open("scripts/ci/run_ci_locally.sh") as f:
             content = f.read()
 
             required_checks = ["black", "isort", "ruff", "pytest", "bandit"]
