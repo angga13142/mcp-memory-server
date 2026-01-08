@@ -87,20 +87,37 @@ disallow_untyped_defs = false
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-addopts = "-v --tb=short"
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short --strict-markers --cov-branch"
 markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "load: marks tests as load tests requiring server",
-    "integration: marks integration tests",
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "load: Load/performance tests requiring server",
+    "slow: Slow running tests (deselect with '-m \"not slow\"')",
+    "e2e: End-to-end tests",
+    "asyncio: Async tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:alembic.*:",
 ]
 
 [tool.coverage.run]
 source = ["src"]
 branch = true
+omit = [
+    "src/__pycache__/*",
+    "src/*/migrations/*",
+]
 
 [tool.coverage.report]
+fail_under = 85
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
     "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "pass",
 ]
+show_missing = true
