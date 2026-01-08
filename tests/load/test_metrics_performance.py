@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.utils.metrics import get_metrics, journal_sessions_total
+from src.monitoring.metrics import get_metrics, journal_metrics
 
 
 class TestMetricsPerformance:
@@ -92,7 +92,7 @@ class TestMetricsPerformance:
     def test_metrics_export_performance(self):
         """Test metrics export performance."""
         for i in range(100):
-            journal_sessions_total.labels(status='success').inc()
+            journal_metrics.sessions_total.labels(status='success').inc()
         
         times = []
         for _ in range(50):
@@ -113,8 +113,8 @@ class TestMetricsPerformance:
     async def test_metric_cardinality_limit(self):
         """Test system handles metric cardinality well."""
         for i in range(100):
-            journal_sessions_total.labels(status='success').inc()
-            journal_sessions_total.labels(status='failed').inc()
+            journal_metrics.sessions_total.labels(status='success').inc()
+            journal_metrics.sessions_total.labels(status='failed').inc()
         
         metrics = get_metrics().decode('utf-8')
         

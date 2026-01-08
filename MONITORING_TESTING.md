@@ -38,6 +38,7 @@ pytest tests/load/ -v
 ### Unit Tests
 
 **Metrics Tests** (`test_metrics.py`):
+
 - Counter increments
 - Gauge operations
 - Histogram observations
@@ -45,6 +46,7 @@ pytest tests/load/ -v
 - Export format
 
 **Logging Tests** (`test_logging.py`):
+
 - JSON formatting
 - Required fields
 - Correlation IDs
@@ -52,6 +54,7 @@ pytest tests/load/ -v
 - Log levels
 
 Run unit tests:
+
 ```bash
 pytest tests/unit/ -v
 ```
@@ -59,18 +62,21 @@ pytest tests/unit/ -v
 ### Integration Tests
 
 **Prometheus Integration** (`test_prometheus_integration.py`):
+
 - Target scraping
 - Metric queries
 - Range queries
 - Alert rules
 
 **Grafana Integration** (`test_grafana_integration.py`):
+
 - Datasource configuration
 - Dashboard loading
 - Panel queries
 - Health checks
 
 Run integration tests:
+
 ```bash
 # Requires Prometheus and Grafana running
 pytest tests/integration/ -v -s
@@ -79,12 +85,14 @@ pytest tests/integration/ -v -s
 ### Performance Tests
 
 **Metrics Performance** (`test_metrics_performance.py`):
+
 - Collection overhead
 - Concurrent updates
 - Export performance
 - Memory usage
 
 Run performance tests:
+
 ```bash
 pytest tests/load/ -v -s
 ```
@@ -92,11 +100,13 @@ pytest tests/load/ -v -s
 ### Alert Tests
 
 **Alert Scenarios** (`test_alert_scenarios.py`):
+
 - Alert triggering
 - Alert annotations
 - Alert recovery
 
 Run alert tests:
+
 ```bash
 # Quick tests (skip slow ones)
 pytest tests/alerts/ -v -s -m 'not slow'
@@ -199,6 +209,7 @@ pytest -m "not slow"
 **Issue**: Tests skip with "Prometheus/Grafana not available"
 
 **Solution**:
+
 ```bash
 # Start monitoring stack
 docker-compose -f docker-compose.monitoring.yml up -d
@@ -216,6 +227,7 @@ curl http://localhost:3000/api/health
 **Issue**: `ModuleNotFoundError`
 
 **Solution**:
+
 ```bash
 # Ensure you're in project root
 cd /home/racoon/AgentMemorh/mcp-memory-server
@@ -230,6 +242,7 @@ pip install -r requirements-dev.txt
 **Issue**: Metrics tests fail
 
 **Solution**:
+
 ```bash
 # Reset metrics (restart server)
 docker-compose restart memory-server
@@ -251,10 +264,10 @@ jobs:
   test:
     - name: Run unit tests
       run: pytest tests/unit/ -v
-    
+
     - name: Run integration tests
       run: pytest tests/integration/ -v -s
-    
+
     - name: Generate coverage
       run: pytest --cov --cov-report=xml
 ```

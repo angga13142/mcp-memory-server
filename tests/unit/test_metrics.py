@@ -3,14 +3,11 @@
 import pytest
 import asyncio
 from prometheus_client import REGISTRY
-from src.utils.metrics import (
-    journal_sessions_total,
-    journal_sessions_active,
-    journal_session_duration,
-    journal_reflections_generated,
-    track_session_operation,
+from src.monitoring.metrics import (
+    get_metrics,
+    journal_metrics,
     track_reflection_generation,
-    get_metrics
+    track_session_operation,
 )
 
 
@@ -24,15 +21,15 @@ class TestMetricsCounters:
     
     def test_sessions_total_increment(self):
         """Test incrementing sessions counter."""
-        initial = journal_sessions_total.labels(status='success')._value.get()
-        journal_sessions_total.labels(status='success').inc()
-        current = journal_sessions_total.labels(status='success')._value.get()
+        initial = journal_metrics.sessions_total.labels(status='success')._value.get()
+        journal_metrics.sessions_total.labels(status='success').inc()
+        current = journal_metrics.sessions_total.labels(status='success')._value.get()
         assert current == initial + 1
     
     def test_sessions_total_with_labels(self):
         """Test counter with different labels."""
-        journal_sessions_total.labels(status='success').inc()
-        journal_sessions_total.labels(status='failed').inc()
+        journal_metrics.sessions_total.labels(status='success').inc()
+        journal_metrics.sessions_total.labels(status='failed').inc()
         
         metrics = get_metrics().decode('utf-8')
         assert 'status="success"' in metrics
@@ -40,9 +37,9 @@ class TestMetricsCounters:
     
     def test_reflections_generated_counter(self):
         """Test reflections counter."""
-        initial = journal_reflections_generated.labels(status='success')._value.get()
-        journal_reflections_generated.labels(status='success').inc()
-        current = journal_reflections_generated.labels(status='success')._value.get()
+        initial = journal_metrics.reflections_generated.labels(status='success')._value.get()
+        journal_metrics.reflections_generated.labels(status='success').inc()
+        current = journal_metrics.reflections_generated.labels(status='success')._value.get()
         assert current == initial + 1
 
 
@@ -51,22 +48,22 @@ class TestMetricsGauges:
     
     def test_active_sessions_gauge(self):
         """Test active sessions gauge."""
-        journal_sessions_active.set(5)
-        value = journal_sessions_active._value.get()
+        journal_metrics.sessions_active.set(5)
+        value = journal_metrics.sessions_active._value.get()
         assert value == 5
     
     def test_active_sessions_increment_decrement(self):
         """Test gauge inc/dec."""
-        journal_sessions_active.set(0)
-        
-        journal_sessions_active.inc()
-        assert journal_sessions_active._value.get() == 1
-        
-        journal_sessions_active.inc(3)
-        assert journal_sessions_active._value.get() == 4
-        
-        journal_sessions_active.dec()
-        assert journal_sessions_active._value.get() == 3
+        journal_metrics.sessions_active.set(0)
+
+        journal_metrics.sessions_active.inc()
+        assert journal_metrics.sessions_active._value.get() == 1
+
+        journal_metrics.sessions_active.inc(3)
+        assert journal_metrics.sessions_active._value.get() == 4
+
+        journal_metrics.sessions_active.dec()
+        assert journal_metrics.sessions_active._value.get() == 3
 
 
 class TestMetricsHistograms:
@@ -74,9 +71,9 @@ class TestMetricsHistograms:
     
     def test_session_duration_histogram(self):
         """Test session duration histogram."""
-        journal_session_duration.observe(15)
-        journal_session_duration.observe(45)
-        journal_session_duration.observe(90)
+        journal_metrics.session_duration.observe(15)
+        journal_metrics.session_duration.observe(45)
+        journal_metrics.session_duration.observe(90)
         
         metrics = get_metrics().decode('utf-8')
         assert 'mcp_journal_session_duration_minutes_bucket' in metrics
@@ -85,14 +82,14 @@ class TestMetricsHistograms:
     
     def test_histogram_buckets(self):
         """Test histogram bucket boundaries."""
-        journal_session_duration.observe(10)
+        journal_metrics.session_duration.observe(10)
         
         metrics = get_metrics().decode('utf-8')
         
-        assert 'le="5"' in metrics
-        assert 'le="15"' in metrics
-        assert 'le="30"' in metrics
-        assert 'le="60"' in metrics
+        assert 'le="5.0"' in metrics
+        assert 'le="15.0"' in metrics
+        assert 'le="30.0"' in metrics
+        assert 'le="60.0"' in metrics
 
 
 class TestMetricDecorators:
@@ -105,9 +102,9 @@ class TestMetricDecorators:
         async def mock_operation():
             return {"success": True}
         
-        initial = journal_sessions_total.labels(status='success')._value.get()
+        initial = journal_metrics.sessions_total.labels(status='success')._value.get()
         result = await mock_operation()
-        current = journal_sessions_total.labels(status='success')._value.get()
+        current = journal_metrics.sessions_total.labels(status='success')._value.get()
         
         assert current == initial + 1
         assert result["success"] is True
@@ -119,9 +116,9 @@ class TestMetricDecorators:
         async def mock_operation():
             return {"success": False, "error": "Test error"}
         
-        initial = journal_sessions_total.labels(status='failed')._value.get()
+        initial = journal_metrics.sessions_total.labels(status='failed')._value.get()
         result = await mock_operation()
-        current = journal_sessions_total.labels(status='failed')._value.get()
+        current = journal_metrics.sessions_total.labels(status='failed')._value.get()
         
         assert current == initial + 1
     
@@ -133,9 +130,9 @@ class TestMetricDecorators:
             await asyncio.sleep(0.1)
             return {"text": "reflection"}
         
-        initial = journal_reflections_generated.labels(status='success')._value.get()
+        initial = journal_metrics.reflections_generated.labels(status='success')._value.get()
         result = await mock_reflection()
-        current = journal_reflections_generated.labels(status='success')._value.get()
+        current = journal_metrics.reflections_generated.labels(status='success')._value.get()
         
         assert current == initial + 1
     

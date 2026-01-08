@@ -1,0 +1,51 @@
+name: Validate Documentation
+
+on:
+  pull_request:
+    paths:
+      - "docs/monitoring/**"
+  push:
+    branches: [main, develop]
+    paths:
+      - "docs/monitoring/**"
+
+jobs:
+  validate:
+    name: Validate Monitoring Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install markdown
+          npm install -g markdownlint-cli markdown-link-check
+
+      - name: Run validation script
+        run: |
+          chmod +x scripts/validate_documentation. sh
+          ./scripts/validate_documentation.sh
+
+      - name: Run Python validator
+        run: |
+          python3 scripts/validate_documentation. py
+
+      - name: Check for broken links
+        run: |
+          for file in docs/monitoring/*.md; do
+            markdown-link-check "$file" --config .markdown-link-check.json
+          done
+
+      - name: Upload validation report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: validation-report
+          path: validation-report.txt
