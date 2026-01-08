@@ -14,6 +14,11 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Status counters
+# Determine script location and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+cd "$PROJECT_ROOT"
+
 CHECKS_PASSED=0
 CHECKS_FAILED=0
 
@@ -174,7 +179,7 @@ else
     echo -e "${RED}⚠️  Some checks failed${NC}"
     echo ""
     echo "To fix issues:"
-    echo "  1. Install dependencies: pip install -r requirements.txt -r requirements-dev.txt"
+    echo "  1. Install dependencies: pip install -r requirements/requirements.txt -r requirements/requirements-dev.txt"
     echo "  2. Make script executable: chmod +x run_tests.sh"
     echo "  3. Re-run validation: ./validate_test_env.sh"
     echo ""

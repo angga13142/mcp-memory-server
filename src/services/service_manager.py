@@ -42,7 +42,7 @@ class ServiceManager:
         self._memory: MemoryService | None = None
         self._search: SearchService | None = None
         self._journal: JournalService | None = None
-        
+
         # Initialize services
         self._memory = MemoryService(self._db, self._vector)
         self._search = SearchService(self._vector)
@@ -74,6 +74,11 @@ class ServiceManager:
         Raises:
             RuntimeError: If services not initialized
         """
-        if not self._initialized or not self._memory or not self._search or not self._journal:
+        if (
+            not self._initialized
+            or not self._memory
+            or not self._search
+            or not self._journal
+        ):
             raise RuntimeError("Services not initialized. Call initialize() first.")
         return self._memory, self._search, self._journal

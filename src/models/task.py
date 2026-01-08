@@ -29,19 +29,33 @@ class Task(BaseModel):
 
     id: str = Field(default_factory=generate_id, description="Task unique identifier")
     title: str = Field(..., max_length=500, description="Task title")
-    description: str = Field(default="", max_length=5000, description="Task description")
+    description: str = Field(
+        default="", max_length=5000, description="Task description"
+    )
     status: TaskStatus = Field(default="next", description="Task status")
     priority: TaskPriority = Field(default="medium", description="Task priority")
-    tags: list[str] = Field(default_factory=list, max_length=50, description="Categorization tags")
-    parent_id: str | None = Field(default=None, description="Parent task ID for subtasks")
-    created_at: datetime = Field(default_factory=utc_now, description="Creation timestamp")
-    updated_at: datetime = Field(default_factory=utc_now, description="Last update timestamp")
-    completed_at: datetime | None = Field(default=None, description="Completion timestamp")
-    blocked_reason: str | None = Field(default=None, max_length=1000, description="Reason if blocked")
+    tags: list[str] = Field(
+        default_factory=list, max_length=50, description="Categorization tags"
+    )
+    parent_id: str | None = Field(
+        default=None, description="Parent task ID for subtasks"
+    )
+    created_at: datetime = Field(
+        default_factory=utc_now, description="Creation timestamp"
+    )
+    updated_at: datetime = Field(
+        default_factory=utc_now, description="Last update timestamp"
+    )
+    completed_at: datetime | None = Field(
+        default=None, description="Completion timestamp"
+    )
+    blocked_reason: str | None = Field(
+        default=None, max_length=1000, description="Reason if blocked"
+    )
 
     model_config = {"extra": "forbid"}
 
-    @field_validator('tags')
+    @field_validator("tags")
     @classmethod
     def validate_tag_length(cls, v: list[str]) -> list[str]:
         """Validate that tags don't exceed max length."""
@@ -127,13 +141,19 @@ class MemoryEntry(BaseModel):
     source_id: str | None = Field(
         default=None, description="ID of source object (decision_id, task_id, etc.)"
     )
-    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional metadata"
+    )
     tags: list[str] = Field(default_factory=list, description="Categorization tags")
     embedding: list[float] | None = Field(
         default=None, description="Vector embedding (populated by vector store)"
     )
-    created_at: datetime = Field(default_factory=utc_now, description="Creation timestamp")
-    updated_at: datetime = Field(default_factory=utc_now, description="Last update timestamp")
+    created_at: datetime = Field(
+        default_factory=utc_now, description="Creation timestamp"
+    )
+    updated_at: datetime = Field(
+        default_factory=utc_now, description="Last update timestamp"
+    )
 
     model_config = {"extra": "forbid"}
 

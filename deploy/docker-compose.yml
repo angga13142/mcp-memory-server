@@ -3,8 +3,8 @@ version: '3.8'
 services:
   memory-server:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: deploy/Dockerfile
       args:
         ENVIRONMENT: development
     image: mcp-memory-server:dev

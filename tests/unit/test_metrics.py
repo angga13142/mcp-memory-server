@@ -38,11 +38,11 @@ class TestMetricsCounters:
 
     def test_reflections_generated_counter(self):
         """Test reflections counter."""
-        initial = journal_metrics.reflections_generated.labels(
+        initial = journal_metrics.reflections_generated_total.labels(
             status="success"
         )._value.get()
-        journal_metrics.reflections_generated.labels(status="success").inc()
-        current = journal_metrics.reflections_generated.labels(
+        journal_metrics.reflections_generated_total.labels(status="success").inc()
+        current = journal_metrics.reflections_generated_total.labels(
             status="success"
         )._value.get()
         assert current == initial + 1
@@ -92,7 +92,7 @@ class TestMetricsHistograms:
         metrics = get_metrics().decode("utf-8")
 
         assert 'le="5.0"' in metrics
-        assert 'le="15.0"' in metrics
+        assert 'le="10.0"' in metrics
         assert 'le="30.0"' in metrics
         assert 'le="60.0"' in metrics
 
@@ -138,11 +138,11 @@ class TestMetricDecorators:
             await asyncio.sleep(0.1)
             return {"text": "reflection"}
 
-        initial = journal_metrics.reflections_generated.labels(
+        initial = journal_metrics.reflections_generated_total.labels(
             status="success"
         )._value.get()
         await mock_reflection()
-        current = journal_metrics.reflections_generated.labels(
+        current = journal_metrics.reflections_generated_total.labels(
             status="success"
         )._value.get()
 

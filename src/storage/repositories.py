@@ -81,7 +81,9 @@ class ProjectRepository:
         row = result.scalar_one_or_none()
         if row:
             frameworks = [
-                TechStackItem(**f) if isinstance(f, dict) else TechStackItem(name=str(f))
+                TechStackItem(**f)
+                if isinstance(f, dict)
+                else TechStackItem(name=str(f))
                 for f in (row.frameworks or [])
             ]
             return TechStack(
@@ -233,7 +235,7 @@ class ContextRepository:
 
     async def save(self, context: ActiveContext) -> ActiveContext:
         """Save or update the active context with optimistic locking.
-        
+
         Raises:
             IntegrityError: If context was modified by another transaction
         """
@@ -259,18 +261,18 @@ class ContextRepository:
                         version=existing.version + 1,
                     )
                 )
-                
+
                 if update_result.rowcount == 0:
                     # Version mismatch - context was modified
                     if attempt < max_retries - 1:
-                        logger.warning(f"Context version conflict, retry {attempt + 1}/{max_retries}")
+                        logger.warning(
+                            f"Context version conflict, retry {attempt + 1}/{max_retries}"
+                        )
                         await self.session.rollback()
                         continue
                     else:
                         raise IntegrityError(
-                            "Context was modified by another transaction",
-                            None,
-                            None
+                            "Context was modified by another transaction", None, None
                         )
             else:
                 db_context = ActiveContextDB(
@@ -285,9 +287,9 @@ class ContextRepository:
                     version=0,
                 )
                 self.session.add(db_context)
-            
+
             return context
-        
+
         return context
         return context
 
@@ -356,7 +358,9 @@ class TaskRepository:
     async def by_status(self, status: str) -> list[Task]:
         """Get tasks by status."""
         result = await self.session.execute(
-            select(TaskDB).where(TaskDB.status == status).order_by(TaskDB.created_at.desc())
+            select(TaskDB)
+            .where(TaskDB.status == status)
+            .order_by(TaskDB.created_at.desc())
         )
         rows = result.scalars().all()
         return [self._to_model(row) for row in rows]
@@ -461,48 +465,45 @@ class MemoryEntryRepository:
 
 class JournalRepository:
     """Repository for journal operations."""
-    
+
     def __init__(self, session: AsyncSession):
         self.session = session
-    
-    async def get_or_create_today(self) -> DailyJournal: 
+
+    async def get_or_create_today(self) -> DailyJournal:
         """Get today's journal or create if doesn't exist."""
         today = datetime.now(timezone.utc).date()
-        
+
         result = await self.session.execute(
             select(DailyJournalDB).where(DailyJournalDB.date == today)
         )
         db_journal = result.scalar_one_or_none()
-        
+
         if not db_journal:
             # Create new journal for today
-            db_journal = DailyJournalDB(
-                id=generate_id(),
-                date=today
-            )
+            db_journal = DailyJournalDB(id=generate_id(), date=today)
             self.session.add(db_journal)
             await self.session.flush()
-        
+
         return await self._to_model(db_journal)
-    
+
     async def get_by_date(self, date: datetime.date) -> DailyJournal | None:
         """Get journal for specific date."""
         result = await self.session.execute(
             select(DailyJournalDB).where(DailyJournalDB.date == date)
         )
         db_journal = result.scalar_one_or_none()
-        
+
         if db_journal:
             return await self._to_model(db_journal)
         return None
-    
+
     async def save(self, journal: DailyJournal) -> DailyJournal:
         """Save or update journal."""
         result = await self.session.execute(
             select(DailyJournalDB).where(DailyJournalDB.date == journal.date)
         )
         existing = result.scalar_one_or_none()
-        
+
         if existing:
             # Update existing
             existing.morning_intention = journal.morning_intention
@@ -522,12 +523,12 @@ class JournalRepository:
                 mood=journal.mood,
                 wins=journal.wins,
                 created_at=journal.created_at,
-                updated_at=journal.updated_at
+                updated_at=journal.updated_at,
             )
             self.session.add(db_journal)
-        
+
         return journal
-    
+
     async def add_session(self, journal_id: str, session: WorkSession) -> WorkSession:
         """Add work session to journal."""
         db_session = WorkSessionDB(
@@ -541,30 +542,30 @@ class JournalRepository:
             notes=session.notes,
             learnings=session.learnings,
             challenges=session.challenges,
-            created_at=session.start_time
+            created_at=session.start_time,
         )
         self.session.add(db_session)
         await self.session.flush()
-        
+
         return session
-    
+
     async def update_session(self, session: WorkSession) -> WorkSession:
         """Update existing work session."""
         result = await self.session.execute(
             select(WorkSessionDB).where(WorkSessionDB.id == session.id)
         )
         db_session = result.scalar_one_or_none()
-        
-        if db_session: 
+
+        if db_session:
             db_session.end_time = session.end_time
             db_session.files_touched = session.files_touched
             db_session.decisions_made = session.decisions_made
             db_session.notes = session.notes
             db_session.learnings = session.learnings
             db_session.challenges = session.challenges
-        
+
         return session
-    
+
     async def save_reflection(self, reflection: SessionReflection) -> SessionReflection:
         """Save session reflection."""
         db_reflection = SessionReflectionDB(
@@ -573,13 +574,13 @@ class JournalRepository:
             reflection_text=reflection.reflection_text,
             key_insights=reflection.key_insights,
             related_memories=reflection.related_memories,
-            created_at=reflection.created_at
+            created_at=reflection.created_at,
         )
         self.session.add(db_reflection)
         await self.session.flush()
-        
+
         return reflection
-    
+
     async def get_sessions_by_date(self, date: datetime.date) -> list[WorkSession]:
         """Get all sessions for a specific date."""
         result = await self.session.execute(
@@ -589,27 +590,28 @@ class JournalRepository:
             .order_by(WorkSessionDB.start_time)
         )
         db_sessions = result.scalars().all()
-        
+
         return [self._session_to_model(s) for s in db_sessions]
-    
-    async def get_recent_journals(self, days: int = 7) -> list[DailyJournal]: 
+
+    async def get_recent_journals(self, days: int = 7) -> list[DailyJournal]:
         """Get journals for recent days."""
         from datetime import timedelta
+
         start_date = datetime.now(timezone.utc).date() - timedelta(days=days)
-        
+
         result = await self.session.execute(
             select(DailyJournalDB)
             .where(DailyJournalDB.date >= start_date)
             .order_by(DailyJournalDB.date.desc())
         )
         db_journals = result.scalars().all()
-        
+
         journals = []
         for db_journal in db_journals:
             journals.append(await self._to_model(db_journal))
-        
+
         return journals
-    
+
     def _ensure_utc(self, dt: datetime | None) -> datetime | None:
         """Ensure datetime is timezone-aware UTC."""
         if dt is None:
@@ -627,9 +629,9 @@ class JournalRepository:
             .order_by(WorkSessionDB.start_time)
         )
         db_sessions = result.scalars().all()
-        
+
         sessions = [self._session_to_model(s) for s in db_sessions]
-        
+
         return DailyJournal(
             id=db_journal.id,
             date=db_journal.date,
@@ -640,9 +642,9 @@ class JournalRepository:
             mood=db_journal.mood or "",
             wins=db_journal.wins or [],
             created_at=self._ensure_utc(db_journal.created_at),
-            updated_at=self._ensure_utc(db_journal.updated_at)
+            updated_at=self._ensure_utc(db_journal.updated_at),
         )
-    
+
     def _session_to_model(self, db_session: WorkSessionDB) -> WorkSession:
         """Convert DB session to Pydantic model."""
         return WorkSession(
@@ -654,5 +656,5 @@ class JournalRepository:
             decisions_made=db_session.decisions_made or [],
             notes=db_session.notes or "",
             learnings=db_session.learnings or [],
-            challenges=db_session.challenges or []
+            challenges=db_session.challenges or [],
         )

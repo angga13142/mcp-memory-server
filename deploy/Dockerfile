@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY requirements.txt requirements.lock* pyproject.toml* ./
+COPY config/requirements/requirements.txt config/requirements/requirements.lock* pyproject.toml* ./
 
 RUN pip install --upgrade pip && \
     if [ -f requirements.lock ]; then \
@@ -68,12 +68,13 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder --chown=appuser:appuser /app/.cache /app/.cache
 
 COPY --chown=appuser:appuser src/ ./src/
-COPY --chown=appuser:appuser migrations/ ./migrations/
-COPY --chown=appuser:appuser alembic.ini ./
-COPY --chown=appuser:appuser config.yaml ./config.yaml
+COPY --chown=appuser:appuser src/ ./src/
+COPY --chown=appuser:appuser src/storage/migrations/ ./src/storage/migrations/
+COPY --chown=appuser:appuser config/ ./config/
+# Scripts are now in a hierarchy, copy strictly what is needed or the whole dir
 COPY --chown=appuser:appuser scripts/ ./scripts/
 
-RUN chmod +x scripts/*.py scripts/*.sh 2>/dev/null || true
+RUN chmod +x scripts/deployment/*.sh scripts/monitoring/*.sh 2>/dev/null || true
 
 USER appuser
 
@@ -82,9 +83,10 @@ RUN mkdir -p /app/data/chroma_db /app/logs
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python scripts/health_check.py || exit 1
+    CMD python scripts/monitoring/health_check.py || exit 1
 
-COPY --chown=appuser:appuser scripts/docker-entrypoint.sh ./
+# Updated entrypoint path
+COPY --chown=appuser:appuser scripts/deployment/docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
 ENTRYPOINT ["./docker-entrypoint.sh"]

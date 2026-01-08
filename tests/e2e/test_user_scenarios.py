@@ -1,13 +1,12 @@
 """End-to-end user scenarios for Daily Work Journal."""
 
 import asyncio
+import os
 from pathlib import Path
 
 import pytest
 
-from src.server import (
-    capture_win,
-)
+from src.server import capture_win
 from src.server import cleanup as server_cleanup
 from src.server import (
     end_work_session,

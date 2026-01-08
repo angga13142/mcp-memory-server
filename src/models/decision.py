@@ -23,29 +23,45 @@ class Decision(BaseModel):
     Captures important decisions with context and rationale.
     """
 
-    id: str = Field(default_factory=generate_id, description="Decision unique identifier")
+    id: str = Field(
+        default_factory=generate_id, description="Decision unique identifier"
+    )
     title: str = Field(..., max_length=500, description="Decision title/summary")
-    decision: str = Field(..., max_length=5000, description="The decision that was made")
-    rationale: str = Field(..., max_length=5000, description="Why this decision was made")
+    decision: str = Field(
+        ..., max_length=5000, description="The decision that was made"
+    )
+    rationale: str = Field(
+        ..., max_length=5000, description="Why this decision was made"
+    )
     alternatives_considered: list[str] = Field(
-        default_factory=list, max_length=50, description="Other options that were considered"
+        default_factory=list,
+        max_length=50,
+        description="Other options that were considered",
     )
     consequences: list[str] = Field(
-        default_factory=list, max_length=50, description="Expected consequences of this decision"
+        default_factory=list,
+        max_length=50,
+        description="Expected consequences of this decision",
     )
-    tags: list[str] = Field(default_factory=list, max_length=50, description="Categorization tags")
+    tags: list[str] = Field(
+        default_factory=list, max_length=50, description="Categorization tags"
+    )
     status: Literal["proposed", "accepted", "deprecated", "superseded"] = Field(
         default="accepted", description="Decision status"
     )
-    created_at: datetime = Field(default_factory=utc_now, description="Creation timestamp")
-    created_by: str = Field(default="user", max_length=100, description="Who made this decision")
+    created_at: datetime = Field(
+        default_factory=utc_now, description="Creation timestamp"
+    )
+    created_by: str = Field(
+        default="user", max_length=100, description="Who made this decision"
+    )
     superseded_by: str | None = Field(
         default=None, description="ID of decision that supersedes this one"
     )
 
     model_config = {"extra": "forbid"}
 
-    @field_validator('tags', 'alternatives_considered', 'consequences')
+    @field_validator("tags", "alternatives_considered", "consequences")
     @classmethod
     def validate_string_list_items(cls, v: list[str]) -> list[str]:
         """Validate that list items don't exceed max length."""
@@ -89,5 +105,7 @@ class DecisionLog(BaseModel):
 
     def recent(self, limit: int = 5) -> list[Decision]:
         """Get the most recent decisions."""
-        sorted_decisions = sorted(self.decisions, key=lambda d: d.created_at, reverse=True)
+        sorted_decisions = sorted(
+            self.decisions, key=lambda d: d.created_at, reverse=True
+        )
         return sorted_decisions[:limit]

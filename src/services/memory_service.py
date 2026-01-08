@@ -37,8 +37,12 @@ class MemoryService:
         self.database = database
         self.vector_store = vector_store
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10))
-    async def _safe_vector_add(self, id: str, content: str, metadata: dict[str, Any]) -> None:
+    @retry(
+        stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10)
+    )
+    async def _safe_vector_add(
+        self, id: str, content: str, metadata: dict[str, Any]
+    ) -> None:
         """Add to vector store with retry logic.
 
         Args:

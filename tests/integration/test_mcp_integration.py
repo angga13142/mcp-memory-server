@@ -5,10 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from src.server import (
-    active_session_prompt,
-    capture_win,
-)
+from src.server import active_session_prompt, capture_win
 from src.server import cleanup as server_cleanup
 from src.server import (
     daily_progress_prompt,

@@ -6,7 +6,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+PROJECT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 echo "Installing backup cron jobs..."
 
@@ -15,16 +15,16 @@ cat > /tmp/mcp-backups.cron <<EOF
 # MCP Memory Server Backup Jobs
 
 # Prometheus backup - every hour at 5 minutes past
-5 * * * * root ${PROJECT_DIR}/scripts/backup_prometheus_advanced.sh >> /var/log/mcp-backups/cron.log 2>&1
+5 * * * * root ${PROJECT_DIR}/scripts/backup/backup_prometheus_advanced.sh >> /var/log/mcp-backups/cron.log 2>&1
 
 # Grafana backup - daily at 3 AM
-0 3 * * * root ${PROJECT_DIR}/scripts/backup_grafana_advanced.sh >> /var/log/mcp-backups/cron.log 2>&1
+0 3 * * * root ${PROJECT_DIR}/scripts/backup/backup_grafana_advanced.sh >> /var/log/mcp-backups/cron.log 2>&1
 
 # Application backup - every hour at 10 minutes past
-10 * * * * root ${PROJECT_DIR}/scripts/backup_application.sh >> /var/log/mcp-backups/cron.log 2>&1
+10 * * * * root ${PROJECT_DIR}/scripts/backup/backup_application.sh >> /var/log/mcp-backups/cron.log 2>&1
 
 # Backup health check - every 4 hours
-0 */4 * * * root ${PROJECT_DIR}/scripts/check_backup_health.sh >> /var/log/mcp-backups/cron.log 2>&1
+0 */4 * * * root ${PROJECT_DIR}/scripts/backup/check_backup_health.sh >> /var/log/mcp-backups/cron.log 2>&1
 EOF
 
 # Install cron file

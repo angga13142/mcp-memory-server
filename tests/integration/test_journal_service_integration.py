@@ -202,7 +202,7 @@ class TestJournalServiceIntegration:
         # Create yesterday's data
         from src.storage.repositories import JournalRepository
 
-        yesterday = date.today() - timedelta(days=1)
+        yesterday = datetime.now(UTC).date() - timedelta(days=1)
 
         async with integrated_services["database"].session() as session:
             repo = JournalRepository(session)

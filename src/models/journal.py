@@ -20,28 +20,40 @@ def generate_id() -> str:
 
 class WorkSession(BaseModel):
     """Individual work session within a day."""
-    
+
     id: str = Field(default_factory=generate_id, description="Session ID")
     start_time: datetime = Field(default_factory=utc_now, description="Session start")
     end_time: datetime | None = Field(default=None, description="Session end")
-    task: str = Field(..., min_length=1, max_length=500, description="What you're working on")
-    files_touched: list[str] = Field(default_factory=list, max_length=50, description="Files modified")
-    decisions_made: list[str] = Field(default_factory=list, max_length=20, description="Decisions during session")
+    task: str = Field(
+        ..., min_length=1, max_length=500, description="What you're working on"
+    )
+    files_touched: list[str] = Field(
+        default_factory=list, max_length=50, description="Files modified"
+    )
+    decisions_made: list[str] = Field(
+        default_factory=list, max_length=20, description="Decisions during session"
+    )
     notes: str = Field(default="", max_length=2000, description="Session notes")
-    learnings: list[str] = Field(default_factory=list, max_length=10, description="What you learned")
-    challenges: list[str] = Field(default_factory=list, max_length=10, description="Challenges faced")
-    
+    learnings: list[str] = Field(
+        default_factory=list, max_length=10, description="What you learned"
+    )
+    challenges: list[str] = Field(
+        default_factory=list, max_length=10, description="Challenges faced"
+    )
+
     model_config = {"extra": "forbid"}
-    
+
     @computed_field
     @property
     def duration_minutes(self) -> int:
         """Calculate session duration in minutes."""
         if not self.end_time:
             # Session still active - calculate current duration
-            return int((datetime.now(timezone.utc) - self.start_time).total_seconds() / 60)
+            return int(
+                (datetime.now(timezone.utc) - self.start_time).total_seconds() / 60
+            )
         return int((self.end_time - self.start_time).total_seconds() / 60)
-    
+
     @computed_field
     @property
     def is_active(self) -> bool:
@@ -51,64 +63,54 @@ class WorkSession(BaseModel):
 
 class DailyJournal(BaseModel):
     """Daily work journal entry."""
-    
+
     id: str = Field(default_factory=generate_id, description="Journal entry ID")
     date: dt_date = Field(
         default_factory=lambda: datetime.now(timezone.utc).date(),
-        description="Journal date"
+        description="Journal date",
     )
     morning_intention: str = Field(
-        default="",
-        max_length=1000,
-        description="What you plan to work on today"
+        default="", max_length=1000, description="What you plan to work on today"
     )
     work_sessions: list[WorkSession] = Field(
-        default_factory=list,
-        description="Work sessions for the day"
+        default_factory=list, description="Work sessions for the day"
     )
     end_of_day_reflection: str = Field(
-        default="",
-        max_length=2000,
-        description="AI-generated daily reflection"
+        default="", max_length=2000, description="AI-generated daily reflection"
     )
     energy_level: int = Field(
-        default=3,
-        ge=1,
-        le=5,
-        description="Energy level (1=drained, 5=energized)"
+        default=3, ge=1, le=5, description="Energy level (1=drained, 5=energized)"
     )
     mood: str = Field(
         default="",
         max_length=50,
-        description="Mood descriptor (focused, creative, struggling, etc.)"
+        description="Mood descriptor (focused, creative, struggling, etc.)",
     )
     wins: list[str] = Field(
-        default_factory=list,
-        max_length=10,
-        description="Wins for the day"
+        default_factory=list, max_length=10, description="Wins for the day"
     )
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
-    
+
     model_config = {"extra": "forbid"}
-    
+
     @computed_field
     @property
     def total_work_minutes(self) -> int:
         """Calculate total work time for the day."""
         return sum(session.duration_minutes for session in self.work_sessions)
-    
+
     @computed_field
     @property
     def tasks_worked_on(self) -> int:
         """Count unique tasks worked on."""
         return len(set(session.task for session in self.work_sessions))
-    
+
     def add_session(self, session: WorkSession) -> None:
         """Add a work session to the journal."""
         self.work_sessions.append(session)
         self.updated_at = utc_now()
-    
+
     def get_active_session(self) -> WorkSession | None:
         """Get currently active session if any."""
         for session in self.work_sessions:
@@ -119,7 +121,7 @@ class DailyJournal(BaseModel):
 
 class SessionReflection(BaseModel):
     """AI-generated reflection for a work session."""
-    
+
     session_id: str
     task: str
     duration_minutes: int

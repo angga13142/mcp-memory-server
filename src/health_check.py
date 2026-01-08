@@ -12,7 +12,7 @@ def check_health():
         conn.request("GET", "/health")
         response = conn.getresponse()
         conn.close()
-        
+
         if response.status == 200:
             return 0
         else:
@@ -21,6 +21,7 @@ def check_health():
     except Exception as e:
         print(f"Health check error: {e}")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(check_health())

@@ -4,24 +4,24 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - 'src/monitoring/**'
-      - 'tests/**'
-      - 'monitoring/**'
-      - '.github/workflows/monitoring-ci.yml'
+      - "src/monitoring/**"
+      - "tests/**"
+      - "monitoring/**"
+      - ".github/workflows/monitoring-ci.yml"
   pull_request:
     branches: [main, develop]
     paths:
-      - 'src/monitoring/**'
-      - 'tests/**'
-      - 'monitoring/**'
+      - "src/monitoring/**"
+      - "tests/**"
+      - "monitoring/**"
   workflow_dispatch:
   schedule:
     # Run nightly at 2 AM UTC
-    - cron: '0 2 * * *'
+    - cron: "0 2 * * *"
 
 env:
-  PYTHON_VERSION: '3.11'
-  POETRY_VERSION: '1.7.0'
+  PYTHON_VERSION: "3.11"
+  POETRY_VERSION: "1.7.0"
 
 jobs:
   # ============================================
@@ -30,50 +30,50 @@ jobs:
   code-quality:
     name: Code Quality
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-      
+          cache: "pip"
+
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install black isort ruff mypy bandit
-          pip install -r requirements.txt
-      
+          pip install -r requirements/requirements.txt
+
       - name: Check code formatting (Black)
         run: |
           echo "🎨 Checking code formatting..."
           black --check src/monitoring/ tests/
-      
+
       - name: Check import sorting (isort)
         run: |
           echo "📦 Checking import sorting..."
           isort --check-only src/monitoring/ tests/
-      
+
       - name: Lint code (Ruff)
         run: |
           echo "🔍 Linting code..."
           ruff check src/monitoring/ tests/
-      
+
       - name: Type checking (MyPy)
         run: |
           echo "🔬 Type checking..."
           mypy src/monitoring/ --strict --ignore-missing-imports
-        continue-on-error: true  # Don't fail on type errors yet
-      
+        continue-on-error: true # Don't fail on type errors yet
+
       - name: Security scan (Bandit)
         run: |
           echo "🔐 Security scanning..."
           bandit -r src/monitoring/ -f json -o bandit-report.json
           bandit -r src/monitoring/ -f screen
-      
+
       - name: Upload security report
         if: always()
         uses: actions/upload-artifact@v3
@@ -87,23 +87,23 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-      
+          cache: "pip"
+
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install pytest pytest-cov pytest-asyncio pytest-timeout
-          pip install -r requirements.txt
-      
+          pip install -r requirements/requirements.txt
+
       - name: Run unit tests
         run: |
           echo "🧪 Running unit tests..."
@@ -115,12 +115,12 @@ jobs:
             --cov-report=html \
             --junitxml=junit.xml \
             --timeout=300
-      
+
       - name: Check coverage threshold
         run: |
           echo "📊 Checking coverage threshold..."
           coverage report --fail-under=85
-      
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -128,7 +128,7 @@ jobs:
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
-      
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v3
@@ -137,7 +137,7 @@ jobs:
           path: |
             junit.xml
             htmlcov/
-      
+
       - name: Comment coverage on PR
         if: github.event_name == 'pull_request'
         uses: py-cov-action/python-coverage-comment-action@v3
@@ -150,19 +150,19 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
-    
+
     services:
       prometheus:
         image: prom/prometheus:latest
-        ports: 
+        ports:
           - 9090:9090
         options: >-
           --health-cmd "wget -q --spider http://localhost:9090/-/healthy"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      
-      grafana: 
+
+      grafana:
         image: grafana/grafana:latest
         ports:
           - 3000:3000
@@ -173,7 +173,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      
+
       redis:
         image: redis:7-alpine
         ports:
@@ -183,46 +183,46 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
-        with: 
+        with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-      
+          cache: "pip"
+
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install pytest pytest-asyncio requests
-          pip install -r requirements.txt
-      
+          pip install -r requirements/requirements.txt
+
       - name: Wait for services
         run: |
           echo "⏳ Waiting for services to be ready..."
           sleep 10
-          
+
           # Check Prometheus
           curl -f http://localhost:9090/-/healthy || exit 1
           echo "✅ Prometheus ready"
-          
+
           # Check Grafana
           curl -f http://localhost:3000/api/health || exit 1
           echo "✅ Grafana ready"
-          
+
           # Check Redis
           redis-cli -h localhost ping || exit 1
           echo "✅ Redis ready"
-      
+
       - name: Configure Prometheus
         run: |
           echo "🔧 Configuring Prometheus..."
           # Copy config if needed
           # curl -X POST http://localhost:9090/-/reload
-      
+
       - name: Run integration tests
         env:
           PROMETHEUS_URL: http://localhost:9090
@@ -235,11 +235,11 @@ jobs:
             -v \
             --tb=short \
             --timeout=600
-      
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v3
-        with: 
+        with:
           name: integration-test-results
           path: pytest-report.xml
 
@@ -250,36 +250,36 @@ jobs:
     name: Load Tests
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event_name == 'schedule'
-    
+
     services:
       prometheus:
         image: prom/prometheus:latest
         ports:
           - 9090:9090
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
-        with: 
+        with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-      
+          cache: "pip"
+
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install pytest pytest-asyncio requests psutil
-          pip install -r requirements.txt
-      
+          pip install -r requirements/requirements.txt
+
       - name: Start application
         run: |
           echo "🚀 Starting application..."
           python -m src.server &
           APP_PID=$!
           echo "APP_PID=$APP_PID" >> $GITHUB_ENV
-          
+
           # Wait for app to be ready
           for i in {1..30}; do
             if curl -f http://localhost:8080/health > /dev/null 2>&1; then
@@ -289,24 +289,19 @@ jobs:
             echo "Waiting for application... ($i/30)"
             sleep 2
           done
-      
+
       - name: Run load tests
         run: |
-          echo "🔥 Running load tests..."
-          pytest tests/load/ \
-            -v \
-            -m load \
-            --tb=short \
-            --timeout=900 \
-            -s
-      
+          chmod +x scripts/load_testing/run_load_tests.sh
+          ./scripts/load_testing/run_load_tests.sh
+
       - name: Upload load test results
         if: always()
         uses: actions/upload-artifact@v3
-        with: 
+        with:
           name: load-test-results
           path: load-test-report.txt
-      
+
       - name: Stop application
         if: always()
         run: |
@@ -320,37 +315,42 @@ jobs:
   docs-validation:
     name: Documentation
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-      
+          node-version: "18"
+
       - name: Install documentation tools
         run: |
           npm install -g markdownlint-cli markdown-link-check
-      
+
       - name: Lint Markdown files
         run: |
           echo "📝 Linting documentation..."
           markdownlint 'docs/**/*.md' --config .markdownlint.json
         continue-on-error: true
-      
+
       - name: Check for broken links
         run: |
           echo "🔗 Checking links..."
           find docs -name "*.md" -exec markdown-link-check {} \;
         continue-on-error: true
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      
+
+      - name: Validate system metrics
+        run: |
+          chmod +x scripts/monitoring/validate_system_metrics.sh
+          ./scripts/monitoring/validate_system_metrics.sh
+
       - name: Validate documentation
         run: |
           echo "✅ Validating documentation..."
@@ -362,23 +362,23 @@ jobs:
   docker-build:
     name: Docker Build
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Build Docker image
         uses: docker/build-push-action@v5
-        with: 
+        with:
           context: .
           push: false
           tags: mcp-memory-server:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      
+
       - name: Test Docker image
         run: |
           echo "🐳 Testing Docker image..."
@@ -390,25 +390,25 @@ jobs:
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-      
+          scan-type: "fs"
+          scan-ref: "."
+          format: "sarif"
+          output: "trivy-results.sarif"
+
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v2
         if: always()
         with:
-          sarif_file: 'trivy-results.sarif'
-      
+          sarif_file: "trivy-results.sarif"
+
       - name: Check for known vulnerabilities in dependencies
         run: |
           pip install safety
@@ -422,14 +422,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: [code-quality, unit-tests, integration-tests]
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    environment: 
+    environment:
       name: staging
       url: https://staging.monitoring.example.com
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Deploy to staging
         run: |
           echo "🚀 Deploying to staging..."
@@ -437,26 +437,26 @@ jobs:
           # Example: kubectl apply -f k8s/staging/
           # Or: docker-compose up -d
           echo "✅ Deployed to staging"
-      
+
       - name: Run smoke tests
         run: |
           echo "🧪 Running smoke tests..."
           sleep 30  # Wait for deployment
-          
+
           # Health check
           curl -f https://staging.monitoring.example.com/health || exit 1
-          
+
           # Metrics check
           curl -f https://staging.monitoring.example.com/metrics | grep mcp_journal || exit 1
-          
+
           echo "✅ Smoke tests passed"
-      
+
       - name: Notify deployment
         if: always()
         uses: 8398a7/action-slack@v3
         with:
           status: ${{ job.status }}
-          text: 'Staging deployment ${{ job.status }}'
+          text: "Staging deployment ${{ job.status }}"
           webhook_url: ${{ secrets.SLACK_WEBHOOK }}
 
   # ============================================
@@ -470,67 +470,74 @@ jobs:
     environment:
       name: production
       url: https://monitoring.example.com
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Create deployment
         uses: chrnorm/deployment-action@v2
         id: deployment
         with:
           token: ${{ github.token }}
           environment: production
-      
+
       - name: Deploy to production
         run: |
           echo "🚀 Deploying to production..."
           # Add deployment commands here
           echo "✅ Deployed to production"
-      
+
       - name: Run smoke tests
         run: |
           echo "🧪 Running production smoke tests..."
           sleep 30
-          
+
           curl -f https://monitoring.example.com/health || exit 1
           curl -f https://monitoring.example.com/metrics | grep mcp_journal || exit 1
-          
+
           echo "✅ Production smoke tests passed"
-      
+
       - name: Update deployment status (success)
         if: success()
         uses: chrnorm/deployment-status@v2
         with:
           token: ${{ github.token }}
           deployment-id: ${{ steps.deployment.outputs.deployment_id }}
-          state: 'success'
-      
+          state: "success"
+
       - name: Update deployment status (failure)
         if: failure()
         uses: chrnorm/deployment-status@v2
         with:
           token: ${{ github.token }}
           deployment-id: ${{ steps.deployment.outputs.deployment_id }}
-          state: 'failure'
-      
+          state: "failure"
+
       - name: Notify deployment
         if: always()
         uses: 8398a7/action-slack@v3
         with:
           status: ${{ job.status }}
-          text: 'Production deployment ${{ job.status }}'
+          text: "Production deployment ${{ job.status }}"
           webhook_url: ${{ secrets.SLACK_WEBHOOK }}
 
   # ============================================
   # JOB 10: Summary Report
   # ============================================
-  summary: 
+  summary:
     name: Summary Report
     runs-on: ubuntu-latest
-    needs: [code-quality, unit-tests, integration-tests, docs-validation, docker-build]
+    needs:
+      [
+        code-quality,
+        unit-tests,
+        integration-tests,
+        docs-validation,
+        docker-build,
+      ]
     if: always()
-    
+
     steps:
       - name: Generate summary
         run: |

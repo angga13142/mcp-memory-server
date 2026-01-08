@@ -76,6 +76,21 @@ class JournalMetrics(MetricCollector):
             registry=self.registry,
         )
 
+    def increment_session(self, status: str) -> None:
+        """Increment session counter."""
+        if self.sessions_total:
+            self.sessions_total.labels(status=status).inc()
+
+    def increment_reflection(self, status: str) -> None:
+        """Increment reflection generation counter."""
+        if self.reflections_generated_total:
+            self.reflections_generated_total.labels(status=status).inc()
+
+    def observe_reflection_generation(self, duration: float) -> None:
+        """Observe reflection generation time."""
+        if self.reflection_generation_seconds:
+            self.reflection_generation_seconds.observe(duration)
+
 
 # Global instance
 journal_metrics = JournalMetrics()

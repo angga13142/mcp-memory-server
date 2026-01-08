@@ -1,6 +1,7 @@
 """SQLAlchemy database setup and session management."""
 
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -59,7 +60,11 @@ class TechStackDB(Base):
     languages = Column(JSON, default=list)
     frameworks = Column(JSON, default=list)
     tools = Column(JSON, default=list)
-    last_updated = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    last_updated = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
 
 class DecisionDB(Base):
@@ -109,7 +114,11 @@ class TaskDB(Base):
     tags = Column(JSON, default=list)
     parent_id = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
     completed_at = Column(DateTime, nullable=True)
     blocked_reason = Column(Text, nullable=True)
 
@@ -126,7 +135,11 @@ class MemoryEntryDB(Base):
     entry_metadata = Column(JSON, default=dict)
     tags = Column(JSON, default=list)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
 
 class SystemPatternDB(Base):
@@ -144,9 +157,9 @@ class SystemPatternDB(Base):
 
 class DailyJournalDB(Base):
     """Daily journal database table."""
-    
+
     __tablename__ = "daily_journals"
-    
+
     id = Column(String(50), primary_key=True)
     date = Column(Date, nullable=False, unique=True)
     morning_intention = Column(Text, default="")
@@ -155,19 +168,25 @@ class DailyJournalDB(Base):
     mood = Column(String(50), default="")
     wins = Column(JSON, default=list)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
     # Relationship
-    work_sessions = relationship("WorkSessionDB", back_populates="journal", cascade="all, delete-orphan")
+    work_sessions = relationship(
+        "WorkSessionDB", back_populates="journal", cascade="all, delete-orphan"
+    )
 
 
 class WorkSessionDB(Base):
     """Work session database table."""
-    
+
     __tablename__ = "work_sessions"
-    
+
     id = Column(String(50), primary_key=True)
-    journal_id = Column(String(50), ForeignKey('daily_journals.id', ondelete='CASCADE'))
+    journal_id = Column(String(50), ForeignKey("daily_journals.id", ondelete="CASCADE"))
     start_time = Column(DateTime, nullable=False)
     end_time = Column(DateTime, nullable=True)
     task = Column(String(500), nullable=False)
@@ -177,24 +196,29 @@ class WorkSessionDB(Base):
     learnings = Column(JSON, default=list)
     challenges = Column(JSON, default=list)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    
+
     # Relationship
     journal = relationship("DailyJournalDB", back_populates="work_sessions")
-    reflection = relationship("SessionReflectionDB", back_populates="session", uselist=False, cascade="all, delete-orphan")
+    reflection = relationship(
+        "SessionReflectionDB",
+        back_populates="session",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
 
 class SessionReflectionDB(Base):
     """Session reflection database table."""
-    
+
     __tablename__ = "session_reflections"
-    
+
     id = Column(String(50), primary_key=True)
-    session_id = Column(String(50), ForeignKey('work_sessions.id', ondelete='CASCADE'))
+    session_id = Column(String(50), ForeignKey("work_sessions.id", ondelete="CASCADE"))
     reflection_text = Column(Text, nullable=False)
     key_insights = Column(JSON, default=list)
     related_memories = Column(JSON, default=list)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    
+
     # Relationship
     session = relationship("WorkSessionDB", back_populates="reflection")
 
@@ -212,18 +236,25 @@ class Database:
 
     async def _run_migrations(self) -> None:
         """Run Alembic migrations."""
+        # Try to find alembic.ini in possible locations
+        alembic_path = "config/alembic.ini"
+        if not os.path.exists(alembic_path):
+            alembic_path = "alembic.ini"
+
         try:
-            alembic_cfg = Config("alembic.ini")
-            alembic_cfg.set_main_option("sqlalchemy.url", self.settings.storage.sqlite.database_url)
-            
-            # Run migrations to head in separate thread
-            await asyncio.get_running_loop().run_in_executor(
-                None,
-                command.upgrade,
-                alembic_cfg,
-                "head"
-            )
-            logger.info("Database migrations completed")
+            if os.path.exists(alembic_path):
+                alembic_cfg = Config(alembic_path)
+                alembic_cfg.set_main_option(
+                    "sqlalchemy.url", self.settings.storage.sqlite.database_url
+                )
+
+                # Run migrations to head in separate thread
+                await asyncio.get_running_loop().run_in_executor(
+                    None, command.upgrade, alembic_cfg, "head"
+                )
+                logger.info("Database migrations completed")
+        except ImportError:
+            logger.warning("Alembic not installed, skipping migrations")
         except Exception as e:
             logger.warning(f"Migration error (tables may already exist): {e}")
             # Fallback to create_all if migrations fail

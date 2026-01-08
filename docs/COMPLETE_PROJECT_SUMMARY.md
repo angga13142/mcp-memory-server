@@ -701,24 +701,22 @@ scripts/
 - Testing frameworks
 - Deployment automation
 
-**Backup Scripts (Phase 4):**
-- backup_prometheus_advanced.sh
-- backup_grafana_advanced.sh
-- backup_application.sh
-- check_backup_health.sh
+- **Backup Scripts**: `scripts/backup/backup_prometheus_advanced.sh`, `scripts/backup/backup_grafana_advanced.sh`, `scripts/backup/backup_application.sh`
+- **Restore Scripts**: `scripts/backup/restore_prometheus.sh`, `scripts/backup/restore_grafana.sh`, `scripts/backup/restore_application.sh`
+- **Verification**: `scripts/backup/verify_recovery.sh`
+- **Health Checks**: `scripts/backup/check_backup_health.sh`
 
-**Recovery Scripts:**
-- restore_prometheus.sh
-- restore_grafana.sh
-- restore_application.sh
-- restore_point_in_time.sh
-- verify_recovery.sh
+### Phase 5.1: System Metrics
+- **Validation**: `scripts/monitoring/validate_system_metrics.sh`
 
-**DR Scripts:**
-- recover_database_corruption.sh
-- recover_ransomware.sh
-- dr_drill.sh
-- test_backup_restore.sh
+### Phase 5.2: Load Testing
+- **Runner**: `scripts/load_testing/run_load_tests.sh`
+
+### Phase 5.3: CI/CD
+- **Local Runner**: `scripts/ci/run_ci_locally.sh`
+
+### Phase 5.4: Disaster Recovery Drill
+- **Simulation**: `scripts/dr/simulate_dr_drill.sh`
 
 ### Infrastructure & Configuration
 

@@ -96,7 +96,6 @@ class TestSystemMetricsIntegration:
                 "src.monitoring.metrics.system_metrics.psutil.virtual_memory"
             ) as mock_mem,
         ):
-
             mock_mem.return_value.used = 1000
 
             # Use small interval

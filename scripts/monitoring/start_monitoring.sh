@@ -17,7 +17,7 @@ fi
 
 # Start monitoring services
 echo "Starting Prometheus, Grafana, and Alertmanager..."
-docker-compose -f docker-compose.monitoring.yml up -d
+docker-compose -f deploy/docker-compose.monitoring.yml up -d
 
 # Wait for services to be ready
 echo ""
@@ -58,5 +58,5 @@ echo "  Grafana:       http://localhost:3000 (admin/admin)"
 echo "  Alertmanager:  http://localhost:9093"
 echo ""
 echo "To view logs:"
-echo "  docker-compose -f docker-compose.monitoring.yml logs -f"
+echo "  docker-compose -f deploy/docker-compose.monitoring.yml logs -f"
 echo ""

@@ -14,7 +14,9 @@ logger = get_logger(__name__)
 limiter = Limiter(key_func=get_remote_address)
 
 
-async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> Response:
+async def rate_limit_exceeded_handler(
+    request: Request, exc: RateLimitExceeded
+) -> Response:
     """Handle rate limit exceeded errors."""
     logger.warning(f"Rate limit exceeded for {request.client.host}")
     return JSONResponse(
@@ -24,6 +26,8 @@ async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) 
             "message": "Rate limit exceeded. Please try again later.",
         },
         headers={
-            "Retry-After": str(exc.retry_after) if hasattr(exc, "retry_after") else "60",
+            "Retry-After": str(exc.retry_after)
+            if hasattr(exc, "retry_after")
+            else "60",
         },
     )

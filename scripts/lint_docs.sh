@@ -3,11 +3,10 @@
 
 set -e
 
-DOCS_DIR="docs/monitoring"
-
-echo "🔍 Quick Documentation Lint"
-echo "==========================="
-echo ""
+# Check for node modules (optional dynamic check)
+if [ -f "docs/package.json" ]; then
+    echo "Using docs/package.json"
+fi
 
 # Check for trailing whitespace
 echo "Checking trailing whitespace..."

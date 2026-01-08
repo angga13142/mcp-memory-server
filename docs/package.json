@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "description": "Documentation validation tools",
   "scripts": {
-    "validate": "./scripts/validate_documentation.sh",
-    "lint": "./scripts/lint_docs.sh",
-    "lint:markdown": "markdownlint 'docs/monitoring/*.md'",
-    "check: links": "markdown-link-check docs/monitoring/*.md",
-    "check:spelling": "cspell 'docs/monitoring/*. md'",
+    "validate": "../scripts/validate_documentation.sh",
+    "lint": "../scripts/lint_docs.sh",
+    "lint:markdown": "markdownlint 'monitoring/*.md'",
+    "check:links": "markdown-link-check monitoring/*.md",
+    "check:spelling": "cspell 'monitoring/*. md'",
     "validate:all": "npm run lint && npm run check:links && npm run validate"
   },
   "devDependencies": {

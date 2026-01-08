@@ -43,11 +43,12 @@ class HTTPSettings(BaseSettings):
         """Validate CORS configuration and warn if insecure."""
         if "*" in self.cors_origins:
             import warnings
+
             warnings.warn(
                 "CORS wildcard (*) allows all origins - this is insecure for production. "
                 "Configure specific origins via MEMORY_SERVER__TRANSPORT__HTTP__CORS_ORIGINS",
                 SecurityWarning,
-                stacklevel=2
+                stacklevel=2,
             )
 
 
@@ -116,7 +117,7 @@ def get_settings(config_path: str | None = None) -> Settings:
         return Settings.from_yaml(config_path)
 
     # Try default config locations
-    for path in ["config.yaml", "config.yml", "../config.yaml"]:
+    for path in ["config/config.yaml", "config.yaml", "config.yml", "../config.yaml"]:
         if Path(path).exists():
             return Settings.from_yaml(path)
 

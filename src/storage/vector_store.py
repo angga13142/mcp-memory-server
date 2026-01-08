@@ -137,15 +137,26 @@ class VectorMemoryStore:
         formatted_results = []
         if results and results["ids"] and results["ids"][0]:
             for i, id in enumerate(results["ids"][0]):
-                formatted_results.append({
-                    "id": id,
-                    "content": results["documents"][0][i] if results["documents"] else "",
-                    "metadata": results["metadatas"][0][i] if results["metadatas"] else {},
-                    "distance": results["distances"][0][i] if results["distances"] else 0.0,
-                    "score": 1 - (results["distances"][0][i] if results["distances"] else 0.0),
-                })
+                formatted_results.append(
+                    {
+                        "id": id,
+                        "content": results["documents"][0][i]
+                        if results["documents"]
+                        else "",
+                        "metadata": results["metadatas"][0][i]
+                        if results["metadatas"]
+                        else {},
+                        "distance": results["distances"][0][i]
+                        if results["distances"]
+                        else 0.0,
+                        "score": 1
+                        - (results["distances"][0][i] if results["distances"] else 0.0),
+                    }
+                )
 
-        logger.debug(f"Search found {len(formatted_results)} results for: {query[:50]}...")
+        logger.debug(
+            f"Search found {len(formatted_results)} results for: {query[:50]}..."
+        )
         return formatted_results
 
     async def delete(self, id: str) -> None:

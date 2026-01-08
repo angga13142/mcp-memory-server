@@ -9,9 +9,14 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
-
+# Counters
 PASSED=0
 FAILED=0
+
+# Determine script location and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+cd "$PROJECT_ROOT"
 
 validate() {
     local test_name="$1"
@@ -136,7 +141,7 @@ validate "Rate limiting middleware" \
     "exists"
 
 validate "Slowapi import" \
-    "grep 'slowapi' requirements.txt" \
+    "grep 'slowapi' requirements/requirements.txt" \
     "slowapi"
 
 validate "Python health check" \
@@ -148,7 +153,7 @@ validate "No curl in health check" \
     "0"
 
 validate "Dependency lock file" \
-    "test -f requirements.lock && echo 'exists'" \
+    "test -f requirements/requirements.lock && echo 'exists'" \
     "exists"
 
 echo ""

@@ -75,7 +75,9 @@ class SearchService:
             if len(filtered_results) >= limit:
                 break
 
-        logger.debug(f"Search '{query[:30]}...' returned {len(filtered_results)} results")
+        logger.debug(
+            f"Search '{query[:30]}...' returned {len(filtered_results)} results"
+        )
         return filtered_results
 
     async def search_similar(

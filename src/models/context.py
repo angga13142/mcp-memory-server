@@ -17,21 +17,35 @@ class ActiveContext(BaseModel):
     and provides immediate context for the current session.
     """
 
-    current_task: str = Field(default="", max_length=1000, description="Current task being worked on")
+    current_task: str = Field(
+        default="", max_length=1000, description="Current task being worked on"
+    )
     related_files: list[str] = Field(
-        default_factory=list, max_length=100, description="Files relevant to current work"
+        default_factory=list,
+        max_length=100,
+        description="Files relevant to current work",
     )
     relevant_decisions: list[str] = Field(
         default_factory=list, max_length=100, description="IDs of relevant decisions"
     )
-    notes: str = Field(default="", max_length=10000, description="Free-form notes about current context")
-    working_branch: str = Field(default="", max_length=255, description="Git branch being worked on")
-    session_id: str = Field(default="", max_length=100, description="Current session identifier")
-    last_updated: datetime = Field(default_factory=utc_now, description="Last update timestamp")
+    notes: str = Field(
+        default="",
+        max_length=10000,
+        description="Free-form notes about current context",
+    )
+    working_branch: str = Field(
+        default="", max_length=255, description="Git branch being worked on"
+    )
+    session_id: str = Field(
+        default="", max_length=100, description="Current session identifier"
+    )
+    last_updated: datetime = Field(
+        default_factory=utc_now, description="Last update timestamp"
+    )
 
     model_config = {"extra": "forbid"}
 
-    @field_validator('related_files')
+    @field_validator("related_files")
     @classmethod
     def validate_file_path_length(cls, v: list[str]) -> list[str]:
         """Validate that file paths don't exceed max length."""

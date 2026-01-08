@@ -29,7 +29,7 @@ logger = get_logger(__name__)
 async def server_lifespan(server: FastMCP):
     """Server lifespan manager."""
     logger.info("Starting MCP Memory Server...")
-    
+
     # Expose metrics endpoint
     # We use a separate port (8081) to avoid conflicts with FastMCP internal routing
     # and to ensure metrics are always accessible regardless of transport.
@@ -60,15 +60,16 @@ async def server_lifespan(server: FastMCP):
 
     # Initialize services
     await get_services()
-    
+
     # Start background tasks
     await system_metrics_collector.start()
-    
+
     yield
-    
+
     # Shutdown logic
     logger.info("Stopping MCP Memory Server...")
     await system_metrics_collector.stop()
+
 
 # Initialize FastMCP server
 mcp = FastMCP(
@@ -103,7 +104,9 @@ async def get_project_brief() -> dict[str, Any]:
     brief = await memory.get_project_brief()
     if brief:
         return brief.model_dump(mode="json")
-    return {"error": "No project brief found. Use set_project_brief tool to create one."}
+    return {
+        "error": "No project brief found. Use set_project_brief tool to create one."
+    }
 
 
 @mcp.resource("memory://journal/today")
@@ -239,10 +242,12 @@ async def set_tech_stack(
         framework_items = []
         if frameworks:
             for f in frameworks:
-                framework_items.append(TechStackItem(
-                    name=f.get("name", ""),
-                    version=f.get("version", ""),
-                ))
+                framework_items.append(
+                    TechStackItem(
+                        name=f.get("name", ""),
+                        version=f.get("version", ""),
+                    )
+                )
 
         tech_stack = TechStack(
             languages=languages or [],
@@ -282,7 +287,11 @@ async def update_active_context(
             notes=notes,
             working_branch=working_branch,
         )
-        return {"success": True, "data": f"Context updated: {current_task or 'cleared'}", "error": None}
+        return {
+            "success": True,
+            "data": f"Context updated: {current_task or 'cleared'}",
+            "error": None,
+        }
     except Exception as e:
         logger.exception(f"Error in update_active_context: {e}")
         return {"success": False, "data": None, "error": str(e)}
@@ -343,7 +352,11 @@ async def log_decision(
             consequences=consequences,
             tags=tags,
         )
-        return {"success": True, "data": f"Decision logged: {result.id} - {title}", "error": None}
+        return {
+            "success": True,
+            "data": f"Decision logged: {result.id} - {title}",
+            "error": None,
+        }
     except Exception as e:
         logger.exception(f"Error in log_decision: {e}")
         return {"success": False, "data": None, "error": str(e)}
@@ -375,7 +388,11 @@ async def create_task(
             priority=priority,
             tags=tags,
         )
-        return {"success": True, "data": f"Task created: {result.id} - {title}", "error": None}
+        return {
+            "success": True,
+            "data": f"Task created: {result.id} - {title}",
+            "error": None,
+        }
     except Exception as e:
         logger.exception(f"Error in create_task: {e}")
         return {"success": False, "data": None, "error": str(e)}
@@ -405,7 +422,11 @@ async def update_task_status(
             blocked_reason=blocked_reason,
         )
         if result:
-            return {"success": True, "data": f"Task {task_id} status updated to: {status}", "error": None}
+            return {
+                "success": True,
+                "data": f"Task {task_id} status updated to: {status}",
+                "error": None,
+            }
         return {"success": False, "data": None, "error": f"Task {task_id} not found"}
     except Exception as e:
         logger.exception(f"Error in update_task_status: {e}")
@@ -475,24 +496,23 @@ async def add_memory_note(
 # JOURNAL TOOLS (Daily Work Tracking)
 # =============================================================================
 
+
 @mcp.tool
-async def start_working_on(
-    task: str
-) -> dict[str, Any]:
-    """Start a work session on a specific task. 
-    
+async def start_working_on(task: str) -> dict[str, Any]:
+    """Start a work session on a specific task.
+
     This automatically tracks your work time, updates active context,
     and will generate AI reflections when you finish the session.
-    
-    Perfect for: 
+
+    Perfect for:
     - Beginning a coding session
     - Starting a design task
     - Kicking off a research session
     - Any focused work block
-    
+
     Args:
         task: Brief description of what you're working on (e.g., "Implementing user authentication")
-    
+
     Returns:
         Response with session info
     """
@@ -502,42 +522,38 @@ async def start_working_on(
             return {
                 "success": False,
                 "error": "Task description is required",
-                "tip": "Provide a brief description of what you're working on"
+                "tip": "Provide a brief description of what you're working on",
             }
-        
+
         if len(task) > 500:
             return {
                 "success": False,
                 "error": "Task description too long (max 500 characters)",
-                "tip": "Keep it concise - just the main focus"
+                "tip": "Keep it concise - just the main focus",
             }
-        
+
         # Get services
         memory, search, journal = await get_services()
-        
+
         # Start session
         result = await journal.start_work_session(task.strip())
-        
+
         # Also update active context for consistency
         if result.get("success"):
             await memory.update_active_context(
-                current_task=task.strip(),
-                notes=f"Started at {result['started_at']}"
+                current_task=task.strip(), notes=f"Started at {result['started_at']}"
             )
-        
+
         return result
-        
+
     except ValueError as e:
         logger.error(f"Validation error in start_working_on: {e}")
-        return {
-            "success": False,
-            "error": f"Invalid input: {str(e)}"
-        }
+        return {"success": False, "error": f"Invalid input: {str(e)}"}
     except Exception as e:
         logger.exception("Unexpected error in start_working_on")
         return {
             "success": False,
-            "error": "Failed to start work session. Please try again."
+            "error": "Failed to start work session. Please try again.",
         }
 
 
@@ -545,18 +561,18 @@ async def start_working_on(
 async def end_work_session(
     what_i_learned: list[str] | None = None,
     challenges_faced: list[str] | None = None,
-    quick_note: str = ""
+    quick_note: str = "",
 ) -> dict[str, Any]:
     """End current work session and get AI-powered reflection.
-    
+
     Completes your active work session, automatically calculates duration,
     generates insights about your work, and connects it to related past work.
-    
-    Args: 
+
+    Args:
         what_i_learned: List of key learnings or insights (optional)
         challenges_faced: List of blockers or difficulties (optional)
         quick_note: Any additional context or notes (optional)
-    
+
     Returns:
         Response with reflection
     """
@@ -566,65 +582,59 @@ async def end_work_session(
             return {
                 "success": False,
                 "error": "Too many learnings (max 10)",
-                "tip": "Focus on the most important insights"
+                "tip": "Focus on the most important insights",
             }
-        
+
         if challenges_faced and len(challenges_faced) > 10:
             return {
                 "success": False,
                 "error": "Too many challenges (max 10)",
-                "tip": "List the main blockers only"
+                "tip": "List the main blockers only",
             }
-        
+
         if quick_note and len(quick_note) > 2000:
             return {
                 "success": False,
                 "error": "Note too long (max 2000 characters)",
-                "tip": "Keep notes concise"
+                "tip": "Keep notes concise",
             }
-        
+
         # Get services
         memory, _, journal = await get_services()
-        
+
         # End session with reflection
         result = await journal.end_work_session(
             learnings=what_i_learned,
             challenges=challenges_faced,
-            quick_note=quick_note.strip() if quick_note else ""
+            quick_note=quick_note.strip() if quick_note else "",
         )
-        
+
         # Clear active context if session ended successfully
         if result.get("success"):
             await memory.update_active_context(
-                current_task="",
-                notes="Session completed"
+                current_task="", notes="Session completed"
             )
-        
+
         return result
-        
+
     except ValueError as e:
         logger.error(f"Validation error in end_work_session: {e}")
-        return {
-            "success": False,
-            "error": f"Invalid input: {str(e)}"
-        }
+        return {"success": False, "error": f"Invalid input: {str(e)}"}
     except Exception as e:
         logger.exception("Unexpected error in end_work_session")
         return {
             "success": False,
-            "error": "Failed to end work session. Please try again."
+            "error": "Failed to end work session. Please try again.",
         }
 
 
 @mcp.tool
-async def how_was_my_day(
-    date: str | None = None
-) -> dict[str, Any]:
+async def how_was_my_day(date: str | None = None) -> dict[str, Any]:
     """Get AI-generated summary of your workday.
-    
+
     Args:
         date: Optional date in YYYY-MM-DD format (defaults to today)
-    
+
     Returns:
         Daily summary and stats
     """
@@ -634,43 +644,42 @@ async def how_was_my_day(
         if date:
             try:
                 from datetime import datetime
+
                 target_date = datetime.strptime(date, "%Y-%m-%d").date()
             except ValueError:
                 return {
                     "success": False,
-                    "error": "Invalid date format. Use YYYY-MM-DD (e.g., 2025-01-08)"
+                    "error": "Invalid date format. Use YYYY-MM-DD (e.g., 2025-01-08)",
                 }
-        
+
         # Get services
         _, _, journal = await get_services()
-        
+
         # Generate daily summary
         result = await journal.generate_daily_summary(target_date)
-        
+
         return result
-        
+
     except Exception as e:
         logger.exception("Unexpected error in how_was_my_day")
         return {
             "success": False,
-            "error": "Failed to generate daily summary. Please try again."
+            "error": "Failed to generate daily summary. Please try again.",
         }
 
 
 @mcp.tool
-async def set_morning_intention(
-    intention: str
-) -> dict[str, Any]: 
+async def set_morning_intention(intention: str) -> dict[str, Any]:
     """Set your intention or goal for the day.
-    
+
     Start your day by declaring what you want to focus on or accomplish.
     This intention will be included in your daily summary and help you
-    stay aligned with your goals. 
-    
+    stay aligned with your goals.
+
     Args:
         intention: What you plan to focus on or accomplish today
-    
-    Returns: 
+
+    Returns:
         Response with success status
     """
     try:
@@ -679,56 +688,55 @@ async def set_morning_intention(
             return {
                 "success": False,
                 "error": "Intention is required",
-                "tip": "What do you want to focus on today?"
+                "tip": "What do you want to focus on today?",
             }
-        
+
         if len(intention) > 1000:
             return {
                 "success": False,
                 "error": "Intention too long (max 1000 characters)",
-                "tip": "Keep it focused and actionable"
+                "tip": "Keep it focused and actionable",
             }
-        
+
         # Get services
         _, _, journal = await get_services()
-        
+
         # Get or create today's journal
         from src.storage.repositories import JournalRepository
+
         async with journal.database.session() as session:
             repo = JournalRepository(session)
             daily_journal = await repo.get_or_create_today()
             daily_journal.morning_intention = intention.strip()
             await repo.save(daily_journal)
-        
+
         logger.info(f"Set morning intention: {intention[:50]}...")
-        
+
         return {
             "success": True,
             "message": "Morning intention set! 🌅",
             "intention": intention.strip(),
-            "tip": "Use start_working_on when you begin your first task"
+            "tip": "Use start_working_on when you begin your first task",
         }
-        
+
     except Exception as e:
         logger.exception("Unexpected error in set_morning_intention")
         return {
             "success": False,
-            "error": "Failed to set morning intention. Please try again."
+            "error": "Failed to set morning intention. Please try again.",
         }
 
 
 @mcp.tool
-async def capture_win(
-    win: str
-) -> dict[str, Any]:
+async def capture_win(win: str) -> dict[str, Any]:
     """Capture a win or achievement for today.
-    
+
     Celebrate your progress! Record wins, achievements, or breakthroughs
     as they happen. These will be included in your daily summary.
-    
+
     Args:
         win: Description of the win or achievement
-    
+
     Returns:
         Response with success status
     """
@@ -738,68 +746,68 @@ async def capture_win(
             return {
                 "success": False,
                 "error": "Win description is required",
-                "tip": "What did you accomplish?"
+                "tip": "What did you accomplish?",
             }
-        
+
         if len(win) > 500:
             return {
                 "success": False,
                 "error": "Win description too long (max 500 characters)",
-                "tip": "Keep it concise"
+                "tip": "Keep it concise",
             }
-        
+
         # Get services
         _, _, journal = await get_services()
-        
+
         # Get or create today's journal
         from src.storage.repositories import JournalRepository
+
         async with journal.database.session() as session:
             repo = JournalRepository(session)
             daily_journal = await repo.get_or_create_today()
-            
+
             # Add win
             if not daily_journal.wins:
                 daily_journal.wins = []
             daily_journal.wins.append(win.strip())
-            
+
             await repo.save(daily_journal)
-        
+
         logger.info(f"Captured win: {win[:50]}...")
-        
+
         return {
             "success": True,
             "message": "Win captured! 🎉",
             "win": win.strip(),
             "total_wins_today": len(daily_journal.wins),
-            "tip": "Keep celebrating your progress!"
+            "tip": "Keep celebrating your progress!",
         }
-        
+
     except Exception as e:
         logger.exception("Unexpected error in capture_win")
-        return {
-            "success": False,
-            "error": "Failed to capture win. Please try again."
-        }
+        return {"success": False, "error": "Failed to capture win. Please try again."}
 
 
 # =============================================================================
 # JOURNAL RESOURCES (Read-only access)
 # =============================================================================
 
+
 @mcp.resource("memory://journal/today")
 async def get_today_journal() -> dict[str, Any]:
     """Get today's complete journal with all sessions."""
     try:
         _, _, journal = await get_services()
-        
+
         # Get today's journal
         from src.storage.repositories import JournalRepository
+
         async with journal.database.session() as session:
             repo = JournalRepository(session)
             daily_journal = await repo.get_or_create_today()
-        
+
         return daily_journal.model_dump(mode="json")
-        
+
     except Exception as e:
         logger.exception("Failed to get today's journal")
         return {"error": f"Failed to retrieve journal: {str(e)}"}
@@ -816,20 +824,21 @@ async def get_journal_by_date(date: str) -> dict[str, Any]:
             target_date = datetime.strptime(date, "%Y-%m-%d").date()
         except ValueError:
             return {"error": "Invalid date format. Use YYYY-MM-DD"}
-        
+
         _, _, journal = await get_services()
-        
+
         # Get journal
         from src.storage.repositories import JournalRepository
+
         async with journal.database.session() as session:
             repo = JournalRepository(session)
             daily_journal = await repo.get_by_date(target_date)
-        
+
         if not daily_journal:
             return {"error": f"No journal found for {date}"}
-        
+
         return daily_journal.model_dump(mode="json")
-        
+
     except Exception as e:
         logger.exception(f"Failed to get journal for {date}")
         return {"error": f"Failed to retrieve journal: {str(e)}"}
@@ -840,16 +849,17 @@ async def get_recent_journals() -> list[dict[str, Any]]:
     """Get journals for the past 7 days."""
     try:
         _, _, journal = await get_services()
-        
+
         # Get recent journals
         from src.storage.repositories import JournalRepository
+
         async with journal.database.session() as session:
             repo = JournalRepository(session)
             journals = await repo.get_recent_journals(days=7)
-        
+
         return [j.model_dump(mode="json") for j in journals]
-        
-    except Exception as e: 
+
+    except Exception as e:
         logger.exception("Failed to get recent journals")
         return [{"error": f"Failed to retrieve journals: {str(e)}"}]
 
@@ -859,24 +869,25 @@ async def get_weekly_stats() -> dict[str, Any]:
     """Get work statistics for the past week."""
     try:
         _, _, journal = await get_services()
-        
+
         # Get last 7 days of journals
         from src.storage.repositories import JournalRepository
+
         async with journal.database.session() as session:
             repo = JournalRepository(session)
             journals = await repo.get_recent_journals(days=7)
-        
+
         # Calculate stats
         total_minutes = sum(j.total_work_minutes for j in journals)
         total_sessions = sum(len(j.work_sessions) for j in journals)
         total_tasks = sum(j.tasks_worked_on for j in journals)
         days_worked = len([j for j in journals if j.work_sessions])
         total_wins = sum(len(j.wins) for j in journals)
-        
+
         # Calculate averages
         avg_hours_per_day = (total_minutes / 60 / days_worked) if days_worked > 0 else 0
         avg_sessions_per_day = (total_sessions / days_worked) if days_worked > 0 else 0
-        
+
         return {
             "period": "Last 7 days",
             "total_hours": round(total_minutes / 60, 1),
@@ -886,10 +897,10 @@ async def get_weekly_stats() -> dict[str, Any]:
             "total_wins": total_wins,
             "averages": {
                 "hours_per_day": round(avg_hours_per_day, 1),
-                "sessions_per_day": round(avg_sessions_per_day, 1)
-            }
+                "sessions_per_day": round(avg_sessions_per_day, 1),
+            },
         }
-        
+
     except Exception as e:
         logger.exception("Failed to get weekly stats")
         return {"error": f"Failed to retrieve stats: {str(e)}"}
@@ -993,45 +1004,45 @@ async def full_context_prompt() -> str:
 @mcp.prompt
 async def morning_briefing_prompt() -> str:
     """Generate morning briefing with yesterday's summary and today's focus.
-    
-    Perfect for starting your workday with context about: 
+
+    Perfect for starting your workday with context about:
     - Yesterday's accomplishments
     - Pending tasks
     - Recent decisions to keep in mind
     - Suggested focus areas
-    
+
     Use this prompt at the start of your day to get oriented.
     """
     try:
         memory, search, journal = await get_services()
-        
+
         # Get morning briefing
         briefing = await journal.get_morning_briefing()
-        
+
         # Enhance with pending tasks
         tasks = await memory.list_tasks()
         incomplete = [t for t in tasks if t.status in ("doing", "next")]
-        
+
         # Add recent decisions
         decisions = await memory.recent_decisions(limit=2)
-        
+
         # Build comprehensive briefing
         if incomplete:
             briefing += "\n## Today's Focus Areas\n\n**Pending Tasks:**\n"
-            for task in incomplete[:5]: 
+            for task in incomplete[:5]:
                 # Ensure task.status is string
                 status = str(task.status).upper() if task.status else "UNKNOWN"
                 briefing += f"- [{status}] {task.title}\n"
-        
+
         if decisions:
             briefing += "\n**Recent Decisions to Remember:**\n"
-            for dec in decisions: 
+            for dec in decisions:
                 briefing += f"- {dec.title}\n"
-        
+
         briefing += "\n---\n\n*What's your intention for today? Use `set_morning_intention` to declare it.*"
-        
+
         return briefing
-        
+
     except Exception as e:
         logger.exception("Failed to generate morning briefing")
         return f"# Morning Briefing\n\nFailed to generate briefing: {str(e)}"
@@ -1040,34 +1051,35 @@ async def morning_briefing_prompt() -> str:
 @mcp.prompt
 async def active_session_prompt() -> str:
     """Get status of your current work session.
-    
+
     Shows:
     - What you're currently working on
     - How long you've been working
     - Related context
-    
+
     Use this to quickly check your current focus.
     """
     try:
         _, _, journal = await get_services()
-        
+
         # Get today's journal
         from src.storage.repositories import JournalRepository
+
         async with journal.database.session() as session:
             repo = JournalRepository(session)
             daily_journal = await repo.get_or_create_today()
-        
+
         # Check for active session
         active_session = daily_journal.get_active_session()
-        
+
         if not active_session:
-            return "# No Active Session\n\nYou're not currently tracking a work session.\n\nUse `start_working_on(\"task description\")` to begin."
-        
+            return '# No Active Session\n\nYou\'re not currently tracking a work session.\n\nUse `start_working_on("task description")` to begin.'
+
         # Build session status
         duration = active_session.duration_minutes
         hours = duration // 60
         minutes = duration % 60
-        
+
         status = f"""# Active Work Session
 
 **Task:** {active_session.task}
@@ -1080,40 +1092,43 @@ async def active_session_prompt() -> str:
 
 *Keep up the focus! Use `end_work_session()` when you're ready to wrap up.*
 """
-        
+
         return status
-        
-    except Exception as e: 
+
+    except Exception as e:
         logger.exception("Failed to generate active session prompt")
         return f"# Active Session\n\nFailed to check session: {str(e)}"
 
 
-@mcp.prompt  
+@mcp.prompt
 async def daily_progress_prompt() -> str:
     """Get snapshot of today's progress.
-    
+
     Shows:
     - Work sessions completed
     - Total time worked
     - Wins captured
     - Current momentum
-    
-    Use this throughout the day to track your progress. 
+
+    Use this throughout the day to track your progress.
     """
     try:
         _, _, journal = await get_services()
-        
+
         # Get today's journal
         from src.storage.repositories import JournalRepository
+
         async with journal.database.session() as session:
             repo = JournalRepository(session)
             daily_journal = await repo.get_or_create_today()
-        
+
         # Calculate stats
-        completed_sessions = [s for s in daily_journal.work_sessions if s.end_time is not None]
+        completed_sessions = [
+            s for s in daily_journal.work_sessions if s.end_time is not None
+        ]
         active_session = daily_journal.get_active_session()
         total_minutes = daily_journal.total_work_minutes
-        
+
         # Build progress report
         progress = f"""# Today's Progress - {daily_journal.date.strftime('%A, %B %d')}
 
@@ -1122,15 +1137,15 @@ async def daily_progress_prompt() -> str:
 - **Total Time:** {total_minutes // 60}h {total_minutes % 60}m
 - **Tasks:** {daily_journal.tasks_worked_on}
 """
-        
+
         if active_session:
             progress += f"\n**Currently Working:** {active_session.task} ({active_session.duration_minutes}m)\n"
-        
+
         if daily_journal.wins:
             progress += f"\n## Wins Today 🎉\n"
             for win in daily_journal.wins:
                 progress += f"- {win}\n"
-        
+
         # Add motivation
         if total_minutes >= 240:  # 4+ hours
             progress += "\n---\n\n✨ **Great focus today!** You're in the zone."
@@ -1138,10 +1153,10 @@ async def daily_progress_prompt() -> str:
             progress += "\n---\n\n💪 **Good progress!** Keep the momentum going."
         else:
             progress += "\n---\n\n🌱 **Getting started!** Every session counts."
-        
+
         return progress
-        
-    except Exception as e: 
+
+    except Exception as e:
         logger.exception("Failed to generate daily progress prompt")
         return f"# Daily Progress\n\nFailed to generate progress: {str(e)}"
 
@@ -1182,7 +1197,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--config",
-        default="config.yaml",
+        default="config/config.yaml",
         help="Configuration file path",
     )
 
@@ -1206,15 +1221,17 @@ def main() -> None:
             from slowapi.errors import RateLimitExceeded
 
             # Get the underlying FastAPI app if available
-            if hasattr(mcp, 'app') and isinstance(mcp.app, FastAPI):
+            if hasattr(mcp, "app") and isinstance(mcp.app, FastAPI):
                 # Add rate limiting
                 mcp.app.state.limiter = limiter
-                mcp.app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
-                
+                mcp.app.add_exception_handler(
+                    RateLimitExceeded, rate_limit_exceeded_handler
+                )
+
                 # Add authentication middleware
                 mcp.app.middleware("http")(http_auth_middleware)
                 logger.info("HTTP authentication and rate limiting enabled")
-            
+
             mcp.run(transport="streamable-http", host=args.host, port=args.port)
         else:
             # STDIO transport - no authentication needed (local use)

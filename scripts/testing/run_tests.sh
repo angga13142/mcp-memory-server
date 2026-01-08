@@ -14,6 +14,12 @@ NC='\033[0m' # No Color
 PASSED=0
 FAILED=0
 
+# Determine script location and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+cd "$PROJECT_ROOT"
+export PYTHONPATH=.
+
 run_test_suite() {
     local name=$1
     local command=$2
@@ -35,6 +41,10 @@ echo "-------------"
 run_test_suite "Model Tests" "pytest tests/unit/test_journal_models.py -v"
 run_test_suite "Repository Tests" "pytest tests/unit/test_journal_repository.py -v"
 run_test_suite "Service Tests" "pytest tests/unit/test_journal_service.py -v"
+run_test_suite "Metrics Tests" "pytest tests/unit/test_metrics.py -v"
+run_test_suite "System Metrics Tests" "pytest tests/unit/test_system_metrics.py -v"
+run_test_suite "System Collector Tests" "pytest tests/unit/test_system_collector.py -v"
+run_test_suite "Load Testing Framework Tests" "pytest tests/unit/test_load_testing_framework.py -v"
 
 # Integration Tests
 echo "🔗 INTEGRATION TESTS"
