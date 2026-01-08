@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  memory-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-memory-server
+    ports:
+      - "8080:8080"
+    volumes:
+      # Persist data across container restarts
+      - memory-data:/app/data
+      # Mount config for easy updates (development)
+      - ./config.yaml:/app/config.yaml:ro
+    environment:
+      - LOG_LEVEL=INFO
+      - MEMORY_SERVER__SERVER__LOG_LEVEL=INFO
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Development service with hot reload
+  memory-server-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-memory-server-dev
+    ports:
+      - "8081:8080"
+    volumes:
+      # Mount source for development
+      - ./src:/app/src:ro
+      - ./config.yaml:/app/config.yaml:ro
+      - memory-dev-data:/app/data
+    environment:
+      - LOG_LEVEL=DEBUG
+      - MEMORY_SERVER__SERVER__LOG_LEVEL=DEBUG
+    profiles:
+      - dev
+    restart: "no"
+
+volumes:
+  memory-data:
+    name: mcp-memory-data
+  memory-dev-data:
+    name: mcp-memory-dev-data

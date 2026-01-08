@@ -1,0 +1,9 @@
+# Development dependencies
+-r requirements.txt
+pytest>=7.4
+pytest-asyncio>=0.21
+pytest-cov>=4.1
+ruff>=0.1.0
+mypy>=1.6
+types-PyYAML>=6.0
+httpx>=0.25

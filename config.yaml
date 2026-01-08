@@ -1,0 +1,31 @@
+server:
+  name: "memory-server"
+  version: "1.0.0"
+  log_level: "INFO"
+
+storage:
+  sqlite:
+    database_url: "sqlite+aiosqlite:///./data/memory.db"
+    echo: false
+  
+  chroma:
+    persist_directory: "./data/chroma_db"
+    embedding_model: "all-MiniLM-L6-v2"
+    collection_name: "memory_embeddings"
+
+transport:
+  default: "stdio"
+  http:
+    enabled: true
+    host: "0.0.0.0"
+    port: 8080
+    cors_origins: ["*"]
+
+features:
+  semantic_search: true
+  auto_embedding: true
+
+memory:
+  retention_days: 90
+  max_decisions: 1000
+  max_tasks: 500
