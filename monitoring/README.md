@@ -26,17 +26,20 @@ docker-compose -f docker-compose.monitoring.yml up -d
 ## Configuration
 
 ### Prometheus
+
 - Config: `monitoring/prometheus.yml`
 - Alerts: `monitoring/alerts/*.yml`
 - Port: 9090
 
 ### Grafana
+
 - Datasources: `monitoring/grafana/datasources/`
 - Dashboards: `monitoring/grafana/dashboards/`
 - Port: 3000
 - Default credentials: admin/admin
 
 ### Alertmanager
+
 - Config: `monitoring/alertmanager/config.yml`
 - Port: 9093
 - Configure Slack webhook in `.env`: `SLACK_WEBHOOK_URL`
@@ -51,6 +54,7 @@ docker-compose -f docker-compose.monitoring.yml up -d
 ## Alerts
 
 Configured alerts:
+
 - High session failure rate
 - Reflection generation failures
 - Slow reflection generation
@@ -63,6 +67,7 @@ Configured alerts:
 ## Troubleshooting
 
 ### Prometheus not scraping targets
+
 ```bash
 # Check Prometheus targets
 curl http://localhost:9090/api/v1/targets
@@ -72,6 +77,7 @@ curl http://localhost:8080/metrics
 ```
 
 ### Grafana cannot connect to Prometheus
+
 ```bash
 # Verify network
 docker network inspect mcp-network
@@ -81,6 +87,7 @@ docker ps | grep prometheus
 ```
 
 ### Alerts not firing
+
 ```bash
 # Check alert rules
 curl http://localhost:9090/api/v1/rules
