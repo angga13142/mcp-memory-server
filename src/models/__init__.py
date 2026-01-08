@@ -1,9 +1,9 @@
 """Data models package."""
 
-from src.models.project import ProjectBrief, TechStack
-from src.models.decision import Decision
 from src.models.context import ActiveContext
-from src.models.task import Task, MemoryEntry
+from src.models.decision import Decision
+from src.models.project import ProjectBrief, TechStack
+from src.models.task import MemoryEntry, Task
 
 __all__ = [
     "ProjectBrief",

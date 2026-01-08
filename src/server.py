@@ -6,27 +6,21 @@ It exposes resources, tools, and prompts for LLM memory management.
 
 import argparse
 import asyncio
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastmcp import FastMCP, Context
-
-from contextlib import asynccontextmanager
+from fastmcp import Context, FastMCP
 from prometheus_client import make_asgi_app
+
 from src.middleware.auth import http_auth_middleware
 from src.middleware.rate_limit import limiter, rate_limit_exceeded_handler
-from src.models import (
-    ActiveContext,
-    Decision,
-    ProjectBrief,
-    Task,
-    TechStack,
-)
+from src.models import ActiveContext, Decision, ProjectBrief, Task, TechStack
 from src.models.project import TechStackItem
+from src.monitoring.collectors import system_metrics_collector
 from src.services.service_manager import ServiceManager
 from src.utils.config import Settings, get_settings
 from src.utils.logger import get_logger
-from src.monitoring.collectors import system_metrics_collector
 
 logger = get_logger(__name__)
 
@@ -40,9 +34,10 @@ async def server_lifespan(server: FastMCP):
     # We use a separate port (8081) to avoid conflicts with FastMCP internal routing
     # and to ensure metrics are always accessible regardless of transport.
     try:
-        from prometheus_client import start_http_server
         import threading
-        
+
+        from prometheus_client import start_http_server
+
         # Start metrics server on 8081 in a daemon thread
         logger.info("Starting Prometheus metrics server on port 8081")
         start_http_server(8081)
@@ -51,9 +46,10 @@ async def server_lifespan(server: FastMCP):
         logger.error(f"Failed to start metrics server: {e}")
         try:
             # Fallback: Start metrics server on side port
-            from prometheus_client import start_http_server
             import threading
-            
+
+            from prometheus_client import start_http_server
+
             # Start metrics server on 8081 in a daemon thread
             # Port 9090 is usually Prometheus itself
             logger.info("Starting Prometheus metrics server on port 8081")
@@ -814,7 +810,7 @@ async def get_journal_by_date(date: str) -> dict[str, Any]:
     """Get journal for a specific date (YYYY-MM-DD format)."""
     try:
         from datetime import datetime
-        
+
         # Parse date
         try:
             target_date = datetime.strptime(date, "%Y-%m-%d").date()
@@ -1208,7 +1204,7 @@ def main() -> None:
             # Apply authentication middleware for HTTP transport
             from fastapi import FastAPI
             from slowapi.errors import RateLimitExceeded
-            
+
             # Get the underlying FastAPI app if available
             if hasattr(mcp, 'app') and isinstance(mcp.app, FastAPI):
                 # Add rate limiting

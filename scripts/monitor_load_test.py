@@ -3,10 +3,11 @@
 Monitor load test execution and track metrics in real-time.
 """
 
-import time
-import requests
 import argparse
+import time
 from datetime import datetime
+
+import requests
 
 
 def monitor_load_test(duration_seconds=300, check_interval=5):

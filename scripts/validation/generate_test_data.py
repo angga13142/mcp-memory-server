@@ -15,12 +15,12 @@ async def generate_test_data():
     
     try:
         from src.services.journal_service import JournalService
+        from src.services.memory_service import MemoryService
+        from src.services.search_service import SearchService
         from src.storage.database import Database
         from src.storage.vector_store import VectorMemoryStore
-        from src.services.search_service import SearchService
-        from src.services.memory_service import MemoryService
         from src.utils.config import get_settings
-        
+
         # Initialize services
         print("\n1. Initializing services...")
         settings = get_settings()

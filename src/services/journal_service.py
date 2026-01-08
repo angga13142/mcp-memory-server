@@ -1,15 +1,15 @@
 """Journal service for daily work tracking."""
 
-import logging
 import asyncio
-from datetime import date, datetime, timezone, timedelta
+import logging
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-from src.models.journal import DailyJournal, WorkSession, SessionReflection
+from src.models.journal import DailyJournal, SessionReflection, WorkSession
+from src.services.search_service import SearchService
 from src.storage.database import Database
 from src.storage.repositories import JournalRepository
 from src.storage.vector_store import VectorMemoryStore
-from src.services.search_service import SearchService
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)

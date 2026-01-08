@@ -1,8 +1,8 @@
 """Service manager for dependency injection."""
 
+from src.services.journal_service import JournalService
 from src.services.memory_service import MemoryService
 from src.services.search_service import SearchService
-from src.services.journal_service import JournalService
 from src.storage.database import Database
 from src.storage.vector_store import VectorMemoryStore
 from src.utils.config import Settings

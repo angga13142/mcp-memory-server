@@ -1,9 +1,11 @@
 """Validate journal models structure and constraints."""
 
 import asyncio
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
 from pydantic import ValidationError
-from src.models.journal import WorkSession, DailyJournal, SessionReflection
+
+from src.models.journal import DailyJournal, SessionReflection, WorkSession
 
 
 async def validate_work_session_model():

@@ -4,6 +4,7 @@
 import sys
 from http.client import HTTPConnection
 
+
 def check_health():
     """Check if server is responding."""
     try:

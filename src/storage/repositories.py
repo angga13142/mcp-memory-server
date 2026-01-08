@@ -1,9 +1,9 @@
 """Repository layer for database operations."""
 
-from datetime import datetime, timezone, timedelta
-from typing import Any, Optional, TypeVar, Generic
+from datetime import datetime, timedelta, timezone
+from typing import Any, Generic, Optional, TypeVar
 
-from sqlalchemy import select, update, delete
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,20 +15,19 @@ from src.models import (
     Task,
     TechStack,
 )
+from src.models.journal import DailyJournal, SessionReflection, WorkSession, generate_id
 from src.models.project import SystemPattern, SystemPatterns, TechStackItem
-from src.models.journal import DailyJournal, WorkSession, SessionReflection
-from src.models.journal import generate_id
 from src.storage.database import (
     ActiveContextDB,
+    DailyJournalDB,
     DecisionDB,
     MemoryEntryDB,
     ProjectBriefDB,
+    SessionReflectionDB,
     SystemPatternDB,
     TaskDB,
     TechStackDB,
-    DailyJournalDB,
     WorkSessionDB,
-    SessionReflectionDB,
 )
 from src.utils.logger import get_logger
 

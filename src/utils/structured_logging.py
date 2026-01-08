@@ -1,11 +1,10 @@
 """Structured logging with JSON output."""
 
-import logging
 import json
-from datetime import datetime, timezone
+import logging
 from contextvars import ContextVar
+from datetime import datetime, timezone
 from typing import Any
-
 
 correlation_id_var: ContextVar[str | None] = ContextVar('correlation_id', default=None)
 user_id_var: ContextVar[str | None] = ContextVar('user_id', default=None)
@@ -66,8 +65,8 @@ def setup_structured_logging(log_level: str = "INFO", log_file: str | None = Non
     logger.addHandler(console_handler)
     
     if log_file:
-        from pathlib import Path
         import logging.handlers
+        from pathlib import Path
         
         log_path = Path(log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)

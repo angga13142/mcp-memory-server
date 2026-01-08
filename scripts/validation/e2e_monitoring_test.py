@@ -2,9 +2,10 @@
 """End-to-end monitoring workflow test."""
 
 import asyncio
-import requests
 import sys
 from pathlib import Path
+
+import requests
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -16,12 +17,12 @@ async def e2e_monitoring_test():
     
     try:
         from src.services.journal_service import JournalService
+        from src.services.memory_service import MemoryService
+        from src.services.search_service import SearchService
         from src.storage.database import Database
         from src.storage.vector_store import VectorMemoryStore
-        from src.services.search_service import SearchService
-        from src.services.memory_service import MemoryService
         from src.utils.config import get_settings
-        
+
         # Initialize services
         print("\n1. Initializing services...")
         settings = get_settings()

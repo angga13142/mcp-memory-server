@@ -10,15 +10,15 @@ Validates all monitoring documentation for:
 - Consistency
 """
 
+import json
 import os
 import re
-import sys
-import json
 import subprocess
-from pathlib import Path
-from typing import List, Dict, Tuple
-from dataclasses import dataclass
+import sys
 from collections import defaultdict
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Tuple
 
 
 @dataclass
