@@ -1,7 +1,7 @@
 # =============================================================================
 # Stage 1: Builder - Install dependencies and download models
 # =============================================================================
-FROM python:3.11-slim as builder
+FROM python:3.14-slim as builder
 
 ARG TRANSFORMERS_CACHE=/app/.cache
 ARG ENVIRONMENT=production
@@ -37,7 +37,7 @@ RUN mkdir -p ${TRANSFORMERS_CACHE} && \
 # =============================================================================
 # Stage 2: Runtime - Slim production image
 # =============================================================================
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 LABEL maintainer="your-email@example.com"
 LABEL description="MCP Memory Server - Daily Work Journal"
