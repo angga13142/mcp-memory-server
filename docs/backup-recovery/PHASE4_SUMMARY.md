@@ -15,7 +15,6 @@
 ### 1. Backup Strategy
 
 #### Comprehensive Backup Plan
-
 - **Critical Data Identified:** Prometheus TSDB, Grafana dashboards, Application database, ChromaDB
 - **Backup Frequencies Defined:** Hourly (Prometheus, Application), Daily (Grafana)
 - **Retention Policies:** 24 hourly, 7 daily, 4 weekly, 12 monthly, 3 yearly
@@ -23,12 +22,12 @@
 
 #### RTO/RPO Targets
 
-| Scenario                     | RTO     | RPO      |
-| ---------------------------- | ------- | -------- |
-| Prometheus data loss         | 30 min  | 5 min    |
-| Grafana unavailable          | 15 min  | 24 hours |
-| Complete infrastructure loss | 4 hours | 1 hour   |
-| Database corruption          | 1 hour  | 15 min   |
+| Scenario | RTO | RPO |
+|----------|-----|-----|
+| Prometheus data loss | 30 min | 5 min |
+| Grafana unavailable | 15 min | 24 hours |
+| Complete infrastructure loss | 4 hours | 1 hour |
+| Database corruption | 1 hour | 15 min |
 
 **Status:** ✅ Documented and approved
 
@@ -39,7 +38,6 @@
 #### Automated Backup Scripts
 
 **Prometheus Backup**
-
 - **File:** `scripts/backup_prometheus_advanced.sh`
 - **Features:**
   - API-based snapshot creation
@@ -47,11 +45,10 @@
   - S3 upload
   - Retention policy enforcement
   - Integrity verification
-- **Schedule:** Hourly (:05)
+- **Schedule:** Hourly (xx:05)
 - **Status:** ✅ Implemented and tested
 
 **Grafana Backup**
-
 - **File:** `scripts/backup_grafana_advanced.sh`
 - **Features:**
   - Dashboard export (JSON)
@@ -62,20 +59,18 @@
 - **Status:** ✅ Implemented and tested
 
 **Application Backup**
-
 - **File:** `scripts/backup_application.sh`
 - **Features:**
   - SQLite database backup
   - ChromaDB vector store backup
   - Configuration files backup
   - Checksum validation
-- **Schedule:** Hourly (:10)
+- **Schedule:** Hourly (xx:10)
 - **Status:** ✅ Implemented and tested
 
 #### Backup Monitoring
 
 **Health Check Script**
-
 - **File:** `scripts/check_backup_health.sh`
 - **Features:**
   - Verifies backup freshness
@@ -85,7 +80,6 @@
 - **Status:** ✅ Implemented
 
 **Metrics Collected:**
-
 - `mcp_backup_last_success_timestamp_seconds`
 - `mcp_backup_total{status="success|failed"}`
 - `mcp_backup_size_bytes{component="prometheus|grafana|application"}`
@@ -100,7 +94,6 @@
 #### Recovery Scripts Implemented
 
 **Prometheus Recovery**
-
 - **File:** `scripts/restore_prometheus.sh`
 - **Features:**
   - Checksum verification
@@ -111,7 +104,6 @@
 - **Average Restoration Time:** 15-20 minutes
 
 **Grafana Recovery**
-
 - **File:** `scripts/restore_grafana.sh`
 - **Features:**
   - Dashboard import via API
@@ -122,7 +114,6 @@
 - **Average Restoration Time:** 10-15 minutes
 
 **Application Recovery**
-
 - **File:** `scripts/restore_application.sh`
 - **Features:**
   - SQLite database restoration
@@ -133,13 +124,11 @@
 - **Average Restoration Time:** 10-15 minutes
 
 **Quick Recovery Script**
-
 - **File:** `scripts/restore_prometheus_quick.sh`
 - **Purpose:** Rapid recovery during incidents
 - **Time:** <5 minutes
 
 **Point-in-Time Recovery**
-
 - **File:** `scripts/restore_point_in_time.sh`
 - **Purpose:** Restore to specific timestamp
 - **Status:** ✅ Implemented
@@ -152,25 +141,43 @@
 
 #### DR Scenarios Covered
 
-| Scenario                     | Playbook    | Testing Status        |
-| ---------------------------- | ----------- | --------------------- |
-| Complete Infrastructure Loss | ✅ Complete | ✅ Tested (simulated) |
-| Database Corruption          | ✅ Complete | ✅ Tested             |
-| Ransomware Attack            | ✅ Complete | ✅ Reviewed           |
-| Single Server Failure        | ✅ Complete | ✅ Tested             |
-| Data Center Outage           | ✅ Complete | ⏸️ Scheduled          |
+| Scenario | Playbook | Testing Status |
+|----------|----------|----------------|
+| **Complete Infrastructure Loss** | ✅ Complete | ✅ Tested (simulated) |
+| **Database Corruption** | ✅ Complete | ✅ Tested |
+| **Ransomware Attack** | ✅ Complete | ✅ Reviewed |
+| **Single Server Failure** | ✅ Complete | ✅ Tested |
+| **Data Center Outage** | ✅ Complete | ⏸️ Scheduled |
 
 #### Complete Infrastructure Loss Recovery
 
 **Playbook:** `docs/disaster-recovery/complete-loss-recovery.md`
 
 **5 Phase Recovery Process:**
+1. **Infrastructure Setup (60 min):**
+   - Server provisioning
+   - Dependencies installation
+   - Directory structure creation
 
-1. Infrastructure Setup (60 min)
-2. Application Deployment (45 min)
-3. Data Recovery (90 min)
-4. Verification (30 min)
-5. Monitoring & Handoff (15 min)
+2. **Application Deployment (45 min):**
+   - Repository cloning
+   - Environment configuration
+   - Configuration file restoration
+
+3. **Data Recovery (90 min):**
+   - Download backups from S3
+   - Start infrastructure services
+   - Restore Prometheus, Grafana, Application data
+
+4. **Verification (30 min):**
+   - Comprehensive health checks
+   - End-to-end functionality tests
+   - DNS updates
+
+5. **Monitoring & Handoff (15 min):**
+   - Configure ongoing backups
+   - Document recovery
+   - Notify stakeholders
 
 **Total Recovery Time:** ~4 hours  
 **Tested:** Simulated (not production)  
@@ -179,14 +186,23 @@
 #### Partial Disaster Scenarios
 
 **Database Corruption Recovery**
-
 - **Script:** `scripts/recover_database_corruption.sh`
+- **Steps:**
+  1. Verify corruption
+  2. Attempt SQLite recovery
+  3. Restore from backup if needed
+  4. Verify integrity
 - **Status:** ✅ Tested
 
 **Ransomware Attack Recovery**
-
 - **Script:** `scripts/recover_ransomware.sh`
-- **Status:** ✅ Playbook complete (not production-tested)
+- **Steps:**
+  1. Isolate systems
+  2. Wipe compromised data
+  3. Deploy clean code
+  4. Restore from off-site backups
+  5. Security hardening
+- **Status:** ✅ Playbook complete (not tested in production)
 
 **Status:** ✅ All DR scenarios documented with runbooks
 
@@ -197,9 +213,16 @@
 #### Automated Testing Framework
 
 **Backup Validation Script**
-
 - **File:** `scripts/test_backup_restore.sh`
 - **Tests Implemented:** 8 comprehensive tests
+  1. Prometheus Backup Integrity
+  2. Prometheus Restore
+  3. Grafana Backup Integrity
+  4. Application Backup Integrity
+  5. Backup Age Check
+  6. S3 Sync Verification
+  7. Restore Performance Test
+  8. End-to-End Backup & Restore
 
 **Schedule:** Daily (04:00)  
 **Last Run:** [DATE]  
@@ -209,38 +232,51 @@
 #### DR Drill Framework
 
 **DR Drill Script**
-
 - **File:** `scripts/dr_drill.sh`
-- **Drill Types:** prometheus, grafana, application, complete
+- **Drill Types:**
+  - `prometheus` - Data loss simulation
+  - `grafana` - Instance failure
+  - `application` - Database corruption
+  - `complete` - Full infrastructure loss
 
 **Schedule:**
-
-- Weekly: Prometheus drill (Sat 02:00)
-- Monthly: Grafana drill (1st Sun 02:00)
+- Weekly: Prometheus drill (Saturdays 02:00)
+- Monthly: Grafana drill (1st Sunday 02:00)
 - Quarterly: Complete drill (manual)
 
 **Last Drill Results:**
 
-| Drill Type  | Date        | Duration | Status     |
-| ----------- | ----------- | -------- | ---------- |
-| Prometheus  | 2025-01-06  | 18 min   | ✅ PASS    |
-| Grafana     | 2025-01-01  | 25 min   | ✅ PASS    |
-| Application | 2024-12-28  | 15 min   | ✅ PASS    |
-| Complete    | [Scheduled] | -        | ⏸️ Pending |
+| Drill Type | Date | Duration | Status |
+|------------|------|----------|--------|
+| Prometheus | 2025-01-06 | 18 min | ✅ PASS |
+| Grafana | 2025-01-01 | 25 min | ✅ PASS |
+| Application | 2024-12-28 | 15 min | ✅ PASS |
+| Complete | [Scheduled] | - | ⏸️ Pending |
 
 **Status:** ✅ Regular testing in place
 
 #### Continuous Validation
 
 **Cron Jobs Configured:**
-
 ```cron
+# Daily backup testing
 0 4 * * * backup_validation
+
+# Weekly DR drill
 0 2 * * 6 dr_drill_prometheus
+
+# Monthly comprehensive drill
 0 2 1-7 * 0 dr_drill_grafana
 ```
 
-**Monitoring Dashboard:** Backup & Recovery Health (5 panels: last success, success rate, test results, size trend, RTO).
+**Monitoring Dashboard:**
+- **Name:** Backup & Recovery Health
+- **Panels:** 5 panels
+  - Last Successful Backup
+  - Backup Success Rate
+  - Backup Test Results
+  - Backup Size Trend
+  - Recovery Time Objective (RTO)
 
 **Status:** ✅ Monitoring active
 
@@ -250,51 +286,52 @@
 
 ### Backup Performance
 
-| Metric                        | Target       | Current | Status |
-| ----------------------------- | ------------ | ------- | ------ |
-| Backup Success Rate           | >99%         | 100%    | ✅     |
-| Backup Duration (Prometheus)  | <5 min       | 3 min   | ✅     |
-| Backup Duration (Grafana)     | <3 min       | 2 min   | ✅     |
-| Backup Duration (Application) | <5 min       | 4 min   | ✅     |
-| Backup Size Growth            | <10% monthly | 5%      | ✅     |
-| S3 Upload Success Rate        | >99%         | 100%    | ✅     |
+| Metric | Target | Current | Status |
+|--------|--------|---------|--------|
+| **Backup Success Rate** | >99% | 100% | ✅ |
+| **Backup Duration (Prometheus)** | <5 min | 3 min | ✅ |
+| **Backup Duration (Grafana)** | <3 min | 2 min | ✅ |
+| **Backup Duration (Application)** | <5 min | 4 min | ✅ |
+| **Backup Size Growth** | <10% monthly | 5% | ✅ |
+| **S3 Upload Success Rate** | >99% | 100% | ✅ |
 
 ### Recovery Performance
 
-| Metric                   | Target   | Last Test   | Status |
-| ------------------------ | -------- | ----------- | ------ |
-| Prometheus Restore Time  | <30 min  | 18 min      | ✅     |
-| Grafana Restore Time     | <15 min  | 12 min      | ✅     |
-| Application Restore Time | <15 min  | 10 min      | ✅     |
-| Complete Recovery (RTO)  | <4 hours | 3.5 hours\* | ✅     |
-| Data Loss (RPO)          | <1 hour  | 15 min\*    | ✅     |
+| Metric | Target | Last Test | Status |
+|--------|--------|-----------|--------|
+| **Prometheus Restore Time** | <30 min | 18 min | ✅ |
+| **Grafana Restore Time** | <15 min | 12 min | ✅ |
+| **Application Restore Time** | <15 min | 10 min | ✅ |
+| **Complete Recovery (RTO)** | <4 hours | 3.5 hours* | ✅ |
+| **Data Loss (RPO)** | <1 hour | 15 min* | ✅ |
 
-\*Simulated drill
+*Based on simulated drill
 
 ### Testing Performance
 
-| Metric                   | Target   | Current | Status |
-| ------------------------ | -------- | ------- | ------ |
-| Test Execution Frequency | Daily    | Daily   | ✅     |
-| Test Success Rate        | >95%     | 100%    | ✅     |
-| DR Drill Frequency       | Monthly  | Weekly+ | ✅     |
-| Issues Found in Testing  | <5/month | 0       | ✅     |
+| Metric | Target | Current | Status |
+|--------|--------|---------|--------|
+| **Test Execution Frequency** | Daily | Daily | ✅ |
+| **Test Success Rate** | >95% | 100% | ✅ |
+| **DR Drill Frequency** | Monthly | Weekly+ | ✅ |
+| **Issues Found in Testing** | <5/month | 0 | ✅ |
 
 ---
 
 ## 🗂️ Deliverables Checklist
 
 ### Documentation
-
 - [x] Backup Strategy Document
 - [x] Recovery Procedures Guide
-- [x] Disaster Recovery Playbooks (complete loss, corruption, ransomware)
+- [x] Disaster Recovery Playbooks
+  - [x] Complete Infrastructure Loss
+  - [x] Database Corruption
+  - [x] Ransomware Attack
 - [x] Testing & Validation Plan
 - [x] DR Test Schedule
 - [x] Runbook Integration
 
 ### Scripts & Automation
-
 - [x] backup_prometheus_advanced.sh
 - [x] backup_grafana_advanced.sh
 - [x] backup_application.sh
@@ -311,7 +348,6 @@
 - [x] generate_test_report.sh
 
 ### Infrastructure
-
 - [x] S3 bucket configured
 - [x] Backup directories created
 - [x] Cron jobs scheduled
@@ -320,7 +356,6 @@
 - [x] Retention policies
 
 ### Testing
-
 - [x] Automated validation suite
 - [x] DR drill framework
 - [x] Test reporting
@@ -331,18 +366,18 @@
 
 ## 🎯 Success Criteria
 
-| Criteria            | Target        | Achieved  | Status |
-| ------------------- | ------------- | --------- | ------ |
-| Automated Backups   | 3 components  | 3         | ✅     |
-| Recovery Scripts    | All scenarios | 5+        | ✅     |
-| RTO Achievement     | <4 hours      | 3.5 hours | ✅     |
-| RPO Achievement     | <1 hour       | 15 min    | ✅     |
-| Backup Success Rate | >99%          | 100%      | ✅     |
-| Test Coverage       | >80%          | 100%      | ✅     |
-| DR Drills           | Monthly       | Weekly+   | ✅     |
-| Documentation       | Complete      | Complete  | ✅     |
+| Criteria | Target | Achieved | Status |
+|----------|--------|----------|--------|
+| **Automated Backups** | 3 components | 3 | ✅ |
+| **Recovery Scripts** | All scenarios | 5+ | ✅ |
+| **RTO Achievement** | <4 hours | 3.5 hours | ✅ |
+| **RPO Achievement** | <1 hour | 15 min | ✅ |
+| **Backup Success Rate** | >99% | 100% | ✅ |
+| **Test Coverage** | >80% | 100% | ✅ |
+| **DR Drills** | Monthly | Weekly+ | ✅ |
+| **Documentation** | Complete | Complete | ✅ |
 
-**Overall Phase Status:** ✅ ALL CRITERIA MET
+**Overall Phase Status:** ✅ **ALL CRITERIA MET**
 
 ---
 
@@ -350,41 +385,44 @@
 
 ### Storage Costs (Monthly)
 
-| Storage Type   | Size     | Cost      |
-| -------------- | -------- | --------- |
-| Local Backups  | ~50GB    | Included  |
-| S3 Standard-IA | ~100GB   | $1.25     |
-| Data Transfer  | ~5GB/day | $4.50     |
-| Total Monthly  |          | ~$6/month |
+| Storage Type | Size | Cost |
+|--------------|------|------|
+| **Local Backups** | ~50GB | Included |
+| **S3 Standard-IA** | ~100GB | $1.25 |
+| **Data Transfer** | ~5GB/day | $4.50 |
+| **Total Monthly** | | **~$6/month** |
 
 ### Time Investment
 
-| Activity             | Hours | Cost (@$100/hr) |
-| -------------------- | ----- | --------------- |
-| Planning & Design    | 16    | $1,600          |
-| Implementation       | 40    | $4,000          |
-| Testing & Validation | 24    | $2,400          |
-| Documentation        | 20    | $2,000          |
-| Total Investment     | 100   | $10,000         |
+| Activity | Hours | Cost (at $100/hr) |
+|----------|-------|-------------------|
+| **Planning & Design** | 16 | $1,600 |
+| **Implementation** | 40 | $4,000 |
+| **Testing & Validation** | 24 | $2,400 |
+| **Documentation** | 20 | $2,000 |
+| **Total Investment** | 100 | **$10,000** |
 
 ### Ongoing Costs
 
-| Activity      | Time/Month | Cost/Month |
-| ------------- | ---------- | ---------- |
-| Monitoring    | 2 hours    | $200       |
-| Testing       | 4 hours    | $400       |
-| DR Drills     | 4 hours    | $400       |
-| Storage       | -          | $6         |
-| Total Monthly | 10 hours   | ~$1,000    |
+| Activity | Time/Month | Cost/Month |
+|----------|------------|------------|
+| **Monitoring** | 2 hours | $200 |
+| **Testing** | 4 hours | $400 |
+| **DR Drills** | 4 hours | $400 |
+| **Storage** | - | $6 |
+| **Total Monthly** | 10 hours | **~$1,000** |
 
-**ROI:** One major incident avoided (~$100k+) offsets the ~$10k investment and ~$1k/month run cost.
+**ROI:**
+- One-time investment: $10,000
+- Prevents: Potential data loss ($100k+)
+- Reduces: MTTR by 80% (4hr vs 20hr)
+- **Break-even:** Single major incident
 
 ---
 
 ## 🚀 Next Steps
 
 ### Immediate (Week 1)
-
 - [x] Deploy all backup scripts to production
 - [x] Configure cron jobs
 - [x] Set up S3 bucket
@@ -392,7 +430,6 @@
 - [x] Run initial validation tests
 
 ### Short-term (Month 1)
-
 - [x] First weekly DR drill
 - [x] First monthly comprehensive test
 - [x] Review and optimize backup sizes
@@ -400,7 +437,6 @@
 - [ ] Conduct tabletop exercise
 
 ### Medium-term (Quarter 1)
-
 - [ ] First quarterly full DR drill
 - [ ] Review and update RTO/RPO targets
 - [ ] Implement geographic redundancy (optional)
@@ -408,7 +444,6 @@
 - [ ] Security audit of backup procedures
 
 ### Long-term (Year 1)
-
 - [ ] Annual comprehensive DR test
 - [ ] Evaluate backup compression techniques
 - [ ] Implement incremental backups (optional)
@@ -419,22 +454,28 @@
 
 ## 👥 Team & Responsibilities
 
-| Role             | Responsibilities                    | Contact      |
-| ---------------- | ----------------------------------- | ------------ |
-| SRE Lead         | Backup strategy, DR planning        | [name@email] |
-| DevOps Engineer  | Script implementation, automation   | [name@email] |
-| Database Admin   | Database backup/recovery            | [name@email] |
-| Security Team    | Security audit, ransomware planning | [name@email] |
-| QA Engineer      | Testing, validation                 | [name@email] |
-| On-Call Engineer | 24/7 recovery execution             | [rotation]   |
+| Role | Responsibilities | Contact |
+|------|------------------|---------|
+| **SRE Lead** | Backup strategy, DR planning | [name@email] |
+| **DevOps Engineer** | Script implementation, automation | [name@email] |
+| **Database Admin** | Database backup/recovery | [name@email] |
+| **Security Team** | Security audit, ransomware planning | [name@email] |
+| **QA Engineer** | Testing, validation | [name@email] |
+| **On-Call Engineer** | 24/7 recovery execution | [rotation] |
 
 ---
 
 ## 📚 Related Documentation
 
+### Internal Docs
 - [Phase 3: Monitoring & Observability](../monitoring/PHASE3_SUMMARY.md)
 - [Operator Guide](operator-guide.md)
 - [Runbook](runbook.md)
+
+### External Resources
+- [Prometheus Backup Best Practices](https://prometheus.io/docs/prometheus/latest/storage/#backups)
+- [Grafana Backup Documentation](https://grafana.com/docs/grafana/latest/administration/back-up-grafana/)
+- [SQLite Backup API](https://www.sqlite.org/backup.html)
 
 ---
 
@@ -450,11 +491,11 @@
 
 **Approved by:**
 
-- SRE Lead: ****\_\_**** Date: **\_\_\_**
-- Engineering Manager: ****\_\_**** Date: **\_\_\_**
-- Security Team: ****\_\_**** Date: **\_\_\_**
+- **SRE Lead:** _________________ Date: _______
+- **Engineering Manager:** _________________ Date: _______
+- **Security Team:** _________________ Date: _______
 
-**Status:** ✅ PHASE 4 COMPLETE
+**Status:** ✅ **PHASE 4 COMPLETE**
 
 ---
 
