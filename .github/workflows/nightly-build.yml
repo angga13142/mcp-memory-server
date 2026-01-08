@@ -27,6 +27,7 @@ jobs:
           pip install --upgrade pip
           pip install pytest pytest-asyncio pytest-timeout requests psutil
           pip install -r config/requirements/requirements.txt # Updated path
+          pip install -e .  # Install package in editable mode
 
       - name: Run all tests (including slow tests)
         run: |
