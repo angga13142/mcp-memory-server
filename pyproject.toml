@@ -88,6 +88,11 @@ disallow_untyped_defs = false
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "-v --tb=short"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "load: marks tests as load tests requiring server",
+    "integration: marks integration tests",
+]
 
 [tool.coverage.run]
 source = ["src"]

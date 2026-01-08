@@ -1,12 +1,8 @@
 """Tests for DR drill procedures and components."""
 
-import json
-import os
 import shutil
 import subprocess
 from pathlib import Path
-
-import pytest
 
 
 class TestDRDrillDocumentation:
@@ -197,7 +193,7 @@ class TestDRProcedureComponents:
             extract_dir.mkdir()
 
             with tarfile.open(tar_path, "r:gz") as tar:
-                tar.extractall(extract_dir)
+                tar.extractall(extract_dir, filter="data")
 
             # Verify
             extracted_file = extract_dir / "test.txt"

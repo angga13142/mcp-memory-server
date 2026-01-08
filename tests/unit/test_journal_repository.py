@@ -209,8 +209,9 @@ class TestJournalRepository:
             assert len(journals) == 3
             assert journals[0].id == "journal1"
 
-    def test_session_to_model_conversion(self, repository):
+    async def test_session_to_model_conversion(self, mock_session):
         """Test converting DB session to model."""
+        repository = JournalRepository(mock_session)
         # Mock DB session
         mock_db_session = MagicMock()
         mock_db_session.id = "session123"

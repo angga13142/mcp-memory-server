@@ -335,15 +335,21 @@ class TestPRValidationWorkflow:
         pr_checks = workflow["jobs"]["pr-checks"]
         steps = pr_checks["steps"]
 
-        # Find PR title check step
+        # Find PR title check step (either action or bash script)
         title_check = None
         for step in steps:
-            if "Check PR title" in step.get("name", ""):
+            step_name = step.get("name", "")
+            step_uses = step.get("uses", "")
+            if "PR title" in step_name or "Validate PR title" in step_name:
+                title_check = step
+                break
+            if "semantic-pull-request" in step_uses:
                 title_check = step
                 break
 
         assert title_check is not None, "No PR title check found"
-        assert "run" in title_check
+        # Accept either 'run' (bash) or 'uses' (action)
+        assert "run" in title_check or "uses" in title_check
 
 
 class TestNightlyBuildWorkflow:

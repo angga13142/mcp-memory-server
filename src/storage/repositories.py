@@ -1,7 +1,6 @@
 """Repository layer for database operations."""
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Generic, Optional, TypeVar
+from datetime import UTC, datetime
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
@@ -16,7 +15,7 @@ from src.models import (
     TechStack,
 )
 from src.models.journal import DailyJournal, SessionReflection, WorkSession, generate_id
-from src.models.project import SystemPattern, SystemPatterns, TechStackItem
+from src.models.project import TechStackItem
 from src.storage.database import (
     ActiveContextDB,
     DailyJournalDB,
@@ -24,7 +23,6 @@ from src.storage.database import (
     MemoryEntryDB,
     ProjectBriefDB,
     SessionReflectionDB,
-    SystemPatternDB,
     TaskDB,
     TechStackDB,
     WorkSessionDB,
@@ -328,7 +326,7 @@ class TaskRepository:
                     priority=task.priority,
                     tags=task.tags,
                     parent_id=task.parent_id,
-                    updated_at=datetime.utcnow(),
+                    updated_at=datetime.now(UTC),
                     completed_at=task.completed_at,
                     blocked_reason=task.blocked_reason,
                 )
@@ -427,7 +425,7 @@ class MemoryEntryRepository:
                     source_id=entry.source_id,
                     entry_metadata=entry.metadata,
                     tags=entry.tags,
-                    updated_at=datetime.utcnow(),
+                    updated_at=datetime.now(UTC),
                 )
             )
         else:
@@ -473,7 +471,7 @@ class JournalRepository:
 
     async def get_or_create_today(self) -> DailyJournal:
         """Get today's journal or create if doesn't exist."""
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(UTC).date()
 
         result = await self.session.execute(
             select(DailyJournalDB).where(DailyJournalDB.date == today)
@@ -513,7 +511,7 @@ class JournalRepository:
             existing.energy_level = journal.energy_level
             existing.mood = journal.mood
             existing.wins = journal.wins
-            existing.updated_at = datetime.now(timezone.utc)
+            existing.updated_at = datetime.now(UTC)
         else:
             # Create new
             db_journal = DailyJournalDB(
@@ -599,7 +597,7 @@ class JournalRepository:
         """Get journals for recent days."""
         from datetime import timedelta
 
-        start_date = datetime.now(timezone.utc).date() - timedelta(days=days)
+        start_date = datetime.now(UTC).date() - timedelta(days=days)
 
         result = await self.session.execute(
             select(DailyJournalDB)
@@ -619,7 +617,7 @@ class JournalRepository:
         if dt is None:
             return None
         if dt.tzinfo is None:
-            return dt.replace(tzinfo=timezone.utc)
+            return dt.replace(tzinfo=UTC)
         return dt
 
     async def _to_model(self, db_journal: DailyJournalDB) -> DailyJournal:

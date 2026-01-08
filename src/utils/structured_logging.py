@@ -2,8 +2,9 @@
 
 import json
 import logging
+import logging.handlers
 from contextvars import ContextVar
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 correlation_id_var: ContextVar[str | None] = ContextVar("correlation_id", default=None)
@@ -16,7 +17,7 @@ class StructuredFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as JSON."""
         log_data = {
-            "@timestamp": datetime.utcnow().isoformat() + "Z",
+            "@timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -65,7 +66,6 @@ def setup_structured_logging(log_level: str = "INFO", log_file: str | None = Non
     logger.addHandler(console_handler)
 
     if log_file:
-        import logging.handlers
         from pathlib import Path
 
         log_path = Path(log_file)
