@@ -22,6 +22,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
 
+# Pre-download embedding model during build
+RUN pip install sentence-transformers && \
+    python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+
 # -----------------------------------------------------------------------------
 # Stage 2: Runtime
 # -----------------------------------------------------------------------------
@@ -32,18 +36,23 @@ WORKDIR /app
 # Create non-root user for security
 RUN useradd --create-home --shell /bin/bash appuser
 
-# Install runtime dependencies
+# Install runtime dependencies (removed curl)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy wheels from builder and install
 COPY --from=builder /app/wheels /wheels
 RUN pip install --no-cache /wheels/*
 
+# Set model cache directory and copy pre-downloaded model from builder
+ENV TRANSFORMERS_CACHE=/app/.cache
+COPY --from=builder /root/.cache /app/.cache
+
 # Copy application code
 COPY src/ ./src/
 COPY config.yaml .
+COPY alembic.ini .
+COPY migrations/ ./migrations/
 
 # Create data directories
 RUN mkdir -p /app/data/sqlite /app/data/chroma_db \
@@ -61,9 +70,9 @@ ENV PYTHONUNBUFFERED=1 \
 # Expose HTTP port
 EXPOSE 8080
 
-# Health check
+# Health check using Python script
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+    CMD python src/health_check.py || exit 1
 
 # Default command - HTTP transport
 CMD ["python", "-m", "src.server", "--transport", "http", "--port", "8080"]

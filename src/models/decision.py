@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 def utc_now() -> datetime:
@@ -24,26 +24,35 @@ class Decision(BaseModel):
     """
 
     id: str = Field(default_factory=generate_id, description="Decision unique identifier")
-    title: str = Field(..., description="Decision title/summary")
-    decision: str = Field(..., description="The decision that was made")
-    rationale: str = Field(..., description="Why this decision was made")
+    title: str = Field(..., max_length=500, description="Decision title/summary")
+    decision: str = Field(..., max_length=5000, description="The decision that was made")
+    rationale: str = Field(..., max_length=5000, description="Why this decision was made")
     alternatives_considered: list[str] = Field(
-        default_factory=list, description="Other options that were considered"
+        default_factory=list, max_length=50, description="Other options that were considered"
     )
     consequences: list[str] = Field(
-        default_factory=list, description="Expected consequences of this decision"
+        default_factory=list, max_length=50, description="Expected consequences of this decision"
     )
-    tags: list[str] = Field(default_factory=list, description="Categorization tags")
+    tags: list[str] = Field(default_factory=list, max_length=50, description="Categorization tags")
     status: Literal["proposed", "accepted", "deprecated", "superseded"] = Field(
         default="accepted", description="Decision status"
     )
     created_at: datetime = Field(default_factory=utc_now, description="Creation timestamp")
-    created_by: str = Field(default="user", description="Who made this decision")
+    created_by: str = Field(default="user", max_length=100, description="Who made this decision")
     superseded_by: str | None = Field(
         default=None, description="ID of decision that supersedes this one"
     )
 
     model_config = {"extra": "forbid"}
+
+    @field_validator('tags', 'alternatives_considered', 'consequences')
+    @classmethod
+    def validate_string_list_items(cls, v: list[str]) -> list[str]:
+        """Validate that list items don't exceed max length."""
+        for item in v:
+            if len(item) > 500:
+                raise ValueError("List items must be <= 500 characters")
+        return v
 
     def deprecate(self, superseded_by: str | None = None) -> None:
         """Mark this decision as deprecated."""

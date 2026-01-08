@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from src.models import (
     ActiveContext,
     Decision,
@@ -35,6 +37,40 @@ class MemoryService:
         self.database = database
         self.vector_store = vector_store
 
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10))
+    async def _safe_vector_add(self, id: str, content: str, metadata: dict[str, Any]) -> None:
+        """Add to vector store with retry logic.
+
+        Args:
+            id: Memory ID
+            content: Content to embed
+            metadata: Metadata for filtering
+
+        Raises:
+            Exception: If all retries fail
+        """
+        try:
+            await self.vector_store.add_memory(id, content, metadata)
+        except Exception as e:
+            logger.warning(f"Vector store add attempt failed for {id}: {e}")
+            raise
+
+    async def _add_to_vector_store_safe(
+        self, id: str, content: str, metadata: dict[str, Any]
+    ) -> None:
+        """Safely add to vector store with retry and fallback.
+
+        Args:
+            id: Memory ID
+            content: Content to embed
+            metadata: Metadata for filtering
+        """
+        try:
+            await self._safe_vector_add(id, content, metadata)
+        except Exception as e:
+            logger.error(f"Failed to add to vector store after retries (id={id}): {e}")
+            # Continue - don't fail the operation if vector store fails
+
     # === Project Brief ===
 
     async def get_project_brief(self) -> ProjectBrief | None:
@@ -50,7 +86,7 @@ class MemoryService:
             result = await repo.save_brief(brief)
 
             # Index in vector store
-            await self.vector_store.add_memory(
+            await self._add_to_vector_store_safe(
                 id=f"project_brief",
                 content=f"Project: {brief.name}\n{brief.description}\nGoals: {', '.join(brief.goals)}",
                 metadata={"content_type": "project_brief", "version": brief.version},
@@ -76,7 +112,7 @@ class MemoryService:
             # Index in vector store
             frameworks_str = ", ".join(f.name for f in tech_stack.frameworks)
             content = f"Languages: {', '.join(tech_stack.languages)}\nFrameworks: {frameworks_str}\nTools: {', '.join(tech_stack.tools)}"
-            await self.vector_store.add_memory(
+            await self._add_to_vector_store_safe(
                 id="tech_stack",
                 content=content,
                 metadata={"content_type": "tech_stack"},
@@ -116,7 +152,7 @@ class MemoryService:
 
             # Index in vector store
             if current_task or notes:
-                await self.vector_store.add_memory(
+                await self._add_to_vector_store_safe(
                     id="active_context",
                     content=context.to_prompt(),
                     metadata={"content_type": "active_context"},
@@ -166,7 +202,7 @@ class MemoryService:
 
             # Index in vector store
             content = f"Decision: {title}\n{decision}\nRationale: {rationale}"
-            await self.vector_store.add_memory(
+            await self._add_to_vector_store_safe(
                 id=f"decision_{result.id}",
                 content=content,
                 metadata={
@@ -222,7 +258,7 @@ class MemoryService:
 
             # Index in vector store
             content = f"Task: {title}\n{description}"
-            await self.vector_store.add_memory(
+            await self._add_to_vector_store_safe(
                 id=f"task_{result.id}",
                 content=content,
                 metadata={
@@ -254,7 +290,7 @@ class MemoryService:
 
             # Update vector store metadata
             content = f"Task: {task.title}\n{task.description}"
-            await self.vector_store.add_memory(
+            await self._add_to_vector_store_safe(
                 id=f"task_{result.id}",
                 content=content,
                 metadata={
@@ -296,7 +332,7 @@ class MemoryService:
             result = await repo.save(entry)
 
             # Index in vector store
-            await self.vector_store.add_memory(
+            await self._add_to_vector_store_safe(
                 id=f"memory_{result.id}",
                 content=content,
                 metadata={

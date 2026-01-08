@@ -37,7 +37,18 @@ class HTTPSettings(BaseSettings):
     enabled: bool = True
     host: str = "0.0.0.0"
     port: int = 8080
-    cors_origins: list[str] = ["*"]
+    cors_origins: list[str] = []
+
+    def validate_cors(self) -> None:
+        """Validate CORS configuration and warn if insecure."""
+        if "*" in self.cors_origins:
+            import warnings
+            warnings.warn(
+                "CORS wildcard (*) allows all origins - this is insecure for production. "
+                "Configure specific origins via MEMORY_SERVER__TRANSPORT__HTTP__CORS_ORIGINS",
+                SecurityWarning,
+                stacklevel=2
+            )
 
 
 class TransportSettings(BaseSettings):

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 def utc_now() -> datetime:
@@ -28,18 +28,27 @@ class Task(BaseModel):
     """
 
     id: str = Field(default_factory=generate_id, description="Task unique identifier")
-    title: str = Field(..., description="Task title")
-    description: str = Field(default="", description="Task description")
+    title: str = Field(..., max_length=500, description="Task title")
+    description: str = Field(default="", max_length=5000, description="Task description")
     status: TaskStatus = Field(default="next", description="Task status")
     priority: TaskPriority = Field(default="medium", description="Task priority")
-    tags: list[str] = Field(default_factory=list, description="Categorization tags")
+    tags: list[str] = Field(default_factory=list, max_length=50, description="Categorization tags")
     parent_id: str | None = Field(default=None, description="Parent task ID for subtasks")
     created_at: datetime = Field(default_factory=utc_now, description="Creation timestamp")
     updated_at: datetime = Field(default_factory=utc_now, description="Last update timestamp")
     completed_at: datetime | None = Field(default=None, description="Completion timestamp")
-    blocked_reason: str | None = Field(default=None, description="Reason if blocked")
+    blocked_reason: str | None = Field(default=None, max_length=1000, description="Reason if blocked")
 
     model_config = {"extra": "forbid"}
+
+    @field_validator('tags')
+    @classmethod
+    def validate_tag_length(cls, v: list[str]) -> list[str]:
+        """Validate that tags don't exceed max length."""
+        for tag in v:
+            if len(tag) > 100:
+                raise ValueError("Tags must be <= 100 characters")
+        return v
 
     def update_status(
         self, status: TaskStatus, blocked_reason: str | None = None

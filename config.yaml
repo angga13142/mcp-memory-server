@@ -7,7 +7,7 @@ storage:
   sqlite:
     database_url: "sqlite+aiosqlite:///./data/memory.db"
     echo: false
-  
+
   chroma:
     persist_directory: "./data/chroma_db"
     embedding_model: "all-MiniLM-L6-v2"
@@ -19,7 +19,7 @@ transport:
     enabled: true
     host: "0.0.0.0"
     port: 8080
-    cors_origins: ["*"]
+    cors_origins: [] # Empty by default - configure via MEMORY_SERVER__TRANSPORT__HTTP__CORS_ORIGINS env var
 
 features:
   semantic_search: true

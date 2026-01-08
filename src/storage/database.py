@@ -1,10 +1,12 @@
 """SQLAlchemy database setup and session management."""
 
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, AsyncGenerator
 
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import JSON, Column, DateTime, Integer, String, Text, event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
@@ -34,7 +36,7 @@ class ProjectBriefDB(Base):
     description = Column(Text, default="")
     goals = Column(JSON, default=list)
     version = Column(String(50), default="1.0.0")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class TechStackDB(Base):
@@ -46,7 +48,7 @@ class TechStackDB(Base):
     languages = Column(JSON, default=list)
     frameworks = Column(JSON, default=list)
     tools = Column(JSON, default=list)
-    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_updated = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
 class DecisionDB(Base):
@@ -62,7 +64,7 @@ class DecisionDB(Base):
     consequences = Column(JSON, default=list)
     tags = Column(JSON, default=list)
     status = Column(String(50), default="accepted")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     created_by = Column(String(100), default="user")
     superseded_by = Column(String(50), nullable=True)
 
@@ -77,7 +79,8 @@ class ActiveContextDB(Base):
     related_files = Column(JSON, default=list)
     relevant_decisions = Column(JSON, default=list)
     notes = Column(Text, default="")
-    working_branch = Column(String(255), default="")
+    working_branch = Column(String(255), deflambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    version = Column(Integer, default=0, nullable=False
     session_id = Column(String(100), default="")
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -94,8 +97,8 @@ class TaskDB(Base):
     priority = Column(String(50), default="medium")
     tags = Column(JSON, default=list)
     parent_id = Column(String(50), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     completed_at = Column(DateTime, nullable=True)
     blocked_reason = Column(Text, nullable=True)
 
@@ -111,8 +114,8 @@ class MemoryEntryDB(Base):
     source_id = Column(String(50), nullable=True)
     entry_metadata = Column(JSON, default=dict)
     tags = Column(JSON, default=list)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
 class SystemPatternDB(Base):
@@ -125,7 +128,7 @@ class SystemPatternDB(Base):
     description = Column(Text, default="")
     example = Column(Text, default="")
     tags = Column(JSON, default=list)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 # === Database Manager ===
@@ -139,8 +142,24 @@ class Database:
         self._engine = None
         self._session_factory = None
 
+    async def _run_migrations(self) -> None:
+        """Run Alembic migrations."""
+        try:
+            alembic_cfg = Config("alembic.ini")
+            alembic_cfg.set_main_option("sqlalchemy.url", self.settings.storage.sqlite.database_url)
+            
+            # Run migrations to head
+            command.upgrade(alembic_cfg, "head")
+            logger.info("Database migrations completed")
+        except Exception as e:
+            logger.warning(f"Migration error (tables may already exist): {e}")
+            # Fallback to create_all if migrations fail
+            async with self._engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            logger.info("Used fallback table creation")
+
     async def init(self) -> None:
-        """Initialize database connection and create tables."""
+        """Initialize database connection and run migrations."""
         db_url = self.settings.storage.sqlite.database_url
 
         # Ensure data directory exists
@@ -167,9 +186,8 @@ class Database:
             expire_on_commit=False,
         )
 
-        # Create tables
-        async with self._engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+        # Run Alembic migrations
+        await self._run_migrations()
 
         logger.info(f"Database initialized: {db_url}")
 

@@ -16,9 +16,13 @@ services:
     environment:
       - LOG_LEVEL=INFO
       - MEMORY_SERVER__SERVER__LOG_LEVEL=INFO
+      # Set API key for authentication (optional)
+      # - MCP_API_KEY=your-secure-api-key
+      # Configure CORS origins (optional)
+      # - MEMORY_SERVER__TRANSPORT__HTTP__CORS_ORIGINS=https://yourdomain.com
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "python", "src/health_check.py"]
       interval: 30s
       timeout: 10s
       retries: 3

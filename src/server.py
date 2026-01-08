@@ -11,6 +11,8 @@ from typing import Any
 
 from fastmcp import FastMCP, Context
 
+from src.middleware.auth import http_auth_middleware
+from src.middleware.rate_limit import limiter, rate_limit_exceeded_handler
 from src.models import (
     ActiveContext,
     Decision,
@@ -19,10 +21,7 @@ from src.models import (
     TechStack,
 )
 from src.models.project import TechStackItem
-from src.services.memory_service import MemoryService
-from src.services.search_service import SearchService
-from src.storage.database import Database, close_database
-from src.storage.vector_store import VectorMemoryStore, close_vector_store
+from src.services.service_manager import ServiceManager
 from src.utils.config import Settings, get_settings
 from src.utils.logger import get_logger
 
@@ -34,23 +33,18 @@ mcp = FastMCP(
     version="1.0.0",
 )
 
-# Global service instances (initialized on startup)
-_memory_service: MemoryService | None = None
-_search_service: SearchService | None = None
+# Global service manager instance
+_service_manager: ServiceManager | None = None
 
 
-async def get_services() -> tuple[MemoryService, SearchService]:
+async def get_services():
     """Get initialized services."""
-    global _memory_service, _search_service
-    if _memory_service is None or _search_service is None:
+    global _service_manager
+    if _service_manager is None:
         settings = get_settings()
-        database = Database(settings)
-        await database.init()
-        vector_store = VectorMemoryStore(settings)
-        await vector_store.init()
-        _memory_service = MemoryService(database, vector_store)
-        _search_service = SearchService(vector_store)
-    return _memory_service, _search_service
+        _service_manager = ServiceManager()
+        await _service_manager.initialize(settings)
+    return _service_manager.get_services()
 
 
 # =============================================================================
@@ -144,7 +138,7 @@ async def set_project_brief(
     description: str,
     goals: list[str] | None = None,
     version: str = "1.0.0",
-) -> str:
+) -> dict[str, Any]:
     """Set or update the project brief.
 
     Args:
@@ -152,16 +146,23 @@ async def set_project_brief(
         description: Project description
         goals: List of project goals
         version: Project version
+
+    Returns:
+        Response with success status and data or error message
     """
-    memory, _ = await get_services()
-    brief = ProjectBrief(
-        name=name,
-        description=description,
-        goals=goals or [],
-        version=version,
-    )
-    await memory.save_project_brief(brief)
-    return f"Project brief set: {name}"
+    try:
+        memory, _ = await get_services()
+        brief = ProjectBrief(
+            name=name,
+            description=description,
+            goals=goals or [],
+            version=version,
+        )
+        await memory.save_project_brief(brief)
+        return {"success": True, "data": f"Project brief set: {name}", "error": None}
+    except Exception as e:
+        logger.exception(f"Error in set_project_brief: {e}")
+        return {"success": False, "data": None, "error": str(e)}
 
 
 @mcp.tool
@@ -169,31 +170,38 @@ async def set_tech_stack(
     languages: list[str] | None = None,
     frameworks: list[dict[str, str]] | None = None,
     tools: list[str] | None = None,
-) -> str:
+) -> dict[str, Any]:
     """Set or update the technology stack.
 
     Args:
         languages: Programming languages used
         frameworks: Frameworks with versions (list of {name, version})
         tools: Development tools
+
+    Returns:
+        Response with success status and data or error message
     """
-    memory, _ = await get_services()
+    try:
+        memory, _ = await get_services()
 
-    framework_items = []
-    if frameworks:
-        for f in frameworks:
-            framework_items.append(TechStackItem(
-                name=f.get("name", ""),
-                version=f.get("version", ""),
-            ))
+        framework_items = []
+        if frameworks:
+            for f in frameworks:
+                framework_items.append(TechStackItem(
+                    name=f.get("name", ""),
+                    version=f.get("version", ""),
+                ))
 
-    tech_stack = TechStack(
-        languages=languages or [],
-        frameworks=framework_items,
-        tools=tools or [],
-    )
-    await memory.save_tech_stack(tech_stack)
-    return "Tech stack updated"
+        tech_stack = TechStack(
+            languages=languages or [],
+            frameworks=framework_items,
+            tools=tools or [],
+        )
+        await memory.save_tech_stack(tech_stack)
+        return {"success": True, "data": "Tech stack updated", "error": None}
+    except Exception as e:
+        logger.exception(f"Error in set_tech_stack: {e}")
+        return {"success": False, "data": None, "error": str(e)}
 
 
 @mcp.tool
@@ -202,7 +210,7 @@ async def update_active_context(
     related_files: list[str] | None = None,
     notes: str | None = None,
     working_branch: str | None = None,
-) -> str:
+) -> dict[str, Any]:
     """Update the current working context.
 
     Args:
@@ -210,30 +218,45 @@ async def update_active_context(
         related_files: Files relevant to current work
         notes: Free-form notes about current context
         working_branch: Git branch being worked on
+
+    Returns:
+        Response with success status and data or error message
     """
-    memory, _ = await get_services()
-    await memory.update_active_context(
-        current_task=current_task,
-        related_files=related_files,
-        notes=notes,
-        working_branch=working_branch,
-    )
-    return f"Context updated: {current_task or 'cleared'}"
+    try:
+        memory, _ = await get_services()
+        await memory.update_active_context(
+            current_task=current_task,
+            related_files=related_files,
+            notes=notes,
+            working_branch=working_branch,
+        )
+        return {"success": True, "data": f"Context updated: {current_task or 'cleared'}", "error": None}
+    except Exception as e:
+        logger.exception(f"Error in update_active_context: {e}")
+        return {"success": False, "data": None, "error": str(e)}
 
 
 @mcp.tool
-async def clear_active_context() -> str:
-    """Clear the current working context."""
-    memory, _ = await get_services()
-    context = ActiveContext()
-    await memory.update_active_context(
-        current_task="",
-        related_files=[],
-        relevant_decisions=[],
-        notes="",
-        working_branch="",
-    )
-    return "Context cleared"
+async def clear_active_context() -> dict[str, Any]:
+    """Clear the current working context.
+
+    Returns:
+        Response with success status and data or error message
+    """
+    try:
+        memory, _ = await get_services()
+        context = ActiveContext()
+        await memory.update_active_context(
+            current_task="",
+            related_files=[],
+            relevant_decisions=[],
+            notes="",
+            working_branch="",
+        )
+        return {"success": True, "data": "Context cleared", "error": None}
+    except Exception as e:
+        logger.exception(f"Error in clear_active_context: {e}")
+        return {"success": False, "data": None, "error": str(e)}
 
 
 @mcp.tool
@@ -244,7 +267,7 @@ async def log_decision(
     alternatives_considered: list[str] | None = None,
     consequences: list[str] | None = None,
     tags: list[str] | None = None,
-) -> str:
+) -> dict[str, Any]:
     """Log an architectural decision.
 
     Args:
@@ -254,17 +277,24 @@ async def log_decision(
         alternatives_considered: Other options that were considered
         consequences: Expected consequences of this decision
         tags: Categorization tags
+
+    Returns:
+        Response with success status and data or error message
     """
-    memory, _ = await get_services()
-    result = await memory.log_decision(
-        title=title,
-        decision=decision,
-        rationale=rationale,
-        alternatives_considered=alternatives_considered,
-        consequences=consequences,
-        tags=tags,
-    )
-    return f"Decision logged: {result.id} - {title}"
+    try:
+        memory, _ = await get_services()
+        result = await memory.log_decision(
+            title=title,
+            decision=decision,
+            rationale=rationale,
+            alternatives_considered=alternatives_considered,
+            consequences=consequences,
+            tags=tags,
+        )
+        return {"success": True, "data": f"Decision logged: {result.id} - {title}", "error": None}
+    except Exception as e:
+        logger.exception(f"Error in log_decision: {e}")
+        return {"success": False, "data": None, "error": str(e)}
 
 
 @mcp.tool
@@ -273,7 +303,7 @@ async def create_task(
     description: str = "",
     priority: str = "medium",
     tags: list[str] | None = None,
-) -> str:
+) -> dict[str, Any]:
     """Create a new task.
 
     Args:
@@ -281,15 +311,22 @@ async def create_task(
         description: Task description
         priority: Task priority (high, medium, low)
         tags: Categorization tags
+
+    Returns:
+        Response with success status and data or error message
     """
-    memory, _ = await get_services()
-    result = await memory.create_task(
-        title=title,
-        description=description,
-        priority=priority,
-        tags=tags,
-    )
-    return f"Task created: {result.id} - {title}"
+    try:
+        memory, _ = await get_services()
+        result = await memory.create_task(
+            title=title,
+            description=description,
+            priority=priority,
+            tags=tags,
+        )
+        return {"success": True, "data": f"Task created: {result.id} - {title}", "error": None}
+    except Exception as e:
+        logger.exception(f"Error in create_task: {e}")
+        return {"success": False, "data": None, "error": str(e)}
 
 
 @mcp.tool
@@ -297,23 +334,30 @@ async def update_task_status(
     task_id: str,
     status: str,
     blocked_reason: str | None = None,
-) -> str:
+) -> dict[str, Any]:
     """Update a task's status.
 
     Args:
         task_id: Task ID
         status: New status (done, doing, next, blocked)
         blocked_reason: Reason if blocked
+
+    Returns:
+        Response with success status and data or error message
     """
-    memory, _ = await get_services()
-    result = await memory.update_task_status(
-        task_id=task_id,
-        status=status,
-        blocked_reason=blocked_reason,
-    )
-    if result:
-        return f"Task {task_id} status updated to: {status}"
-    return f"Task {task_id} not found"
+    try:
+        memory, _ = await get_services()
+        result = await memory.update_task_status(
+            task_id=task_id,
+            status=status,
+            blocked_reason=blocked_reason,
+        )
+        if result:
+            return {"success": True, "data": f"Task {task_id} status updated to: {status}", "error": None}
+        return {"success": False, "data": None, "error": f"Task {task_id} not found"}
+    except Exception as e:
+        logger.exception(f"Error in update_task_status: {e}")
+        return {"success": False, "data": None, "error": str(e)}
 
 
 @mcp.tool
@@ -322,7 +366,7 @@ async def search_memory(
     limit: int = 5,
     content_types: list[str] | None = None,
     tags: list[str] | None = None,
-) -> list[dict[str, Any]]:
+) -> dict[str, Any]:
     """Semantic search across all memory.
 
     Args:
@@ -332,36 +376,47 @@ async def search_memory(
         tags: Filter by tags
 
     Returns:
-        List of search results with content, metadata, and relevance score
+        Response with success status and search results or error message
     """
-    _, search = await get_services()
-    results = await search.search(
-        query=query,
-        limit=limit,
-        content_types=content_types,
-        tags=tags,
-    )
-    return results
+    try:
+        _, search = await get_services()
+        results = await search.search(
+            query=query,
+            limit=limit,
+            content_types=content_types,
+            tags=tags,
+        )
+        return {"success": True, "data": results, "error": None}
+    except Exception as e:
+        logger.exception(f"Error in search_memory: {e}")
+        return {"success": False, "data": [], "error": str(e)}
 
 
 @mcp.tool
 async def add_memory_note(
     content: str,
     tags: list[str] | None = None,
-) -> str:
+) -> dict[str, Any]:
     """Add a free-form memory note.
 
     Args:
         content: Note content
         tags: Categorization tags
+
+    Returns:
+        Response with success status and data or error message
     """
-    memory, _ = await get_services()
-    result = await memory.add_memory(
-        content=content,
-        content_type="note",
-        tags=tags,
-    )
-    return f"Note added: {result.id}"
+    try:
+        memory, _ = await get_services()
+        result = await memory.add_memory(
+            content=content,
+            content_type="note",
+            tags=tags,
+        )
+        return {"success": True, "data": f"Note added: {result.id}", "error": None}
+    except Exception as e:
+        logger.exception(f"Error in add_memory_note: {e}")
+        return {"success": False, "data": None, "error": str(e)}
 
 
 # =============================================================================
@@ -466,8 +521,10 @@ async def full_context_prompt() -> str:
 
 async def cleanup() -> None:
     """Cleanup resources on shutdown."""
-    await close_database()
-    await close_vector_store()
+    global _service_manager
+    if _service_manager:
+        await _service_manager.cleanup()
+        _service_manager = None
     logger.info("Server shutdown complete")
 
 
@@ -512,8 +569,23 @@ def main() -> None:
 
     try:
         if args.transport == "http":
+            # Apply authentication middleware for HTTP transport
+            from fastapi import FastAPI
+            from slowapi.errors import RateLimitExceeded
+            
+            # Get the underlying FastAPI app if available
+            if hasattr(mcp, 'app') and isinstance(mcp.app, FastAPI):
+                # Add rate limiting
+                mcp.app.state.limiter = limiter
+                mcp.app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+                
+                # Add authentication middleware
+                mcp.app.middleware("http")(http_auth_middleware)
+                logger.info("HTTP authentication and rate limiting enabled")
+            
             mcp.run(transport="streamable-http", host=args.host, port=args.port)
         else:
+            # STDIO transport - no authentication needed (local use)
             mcp.run()
     finally:
         asyncio.run(cleanup())

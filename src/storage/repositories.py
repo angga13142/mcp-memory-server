@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import select, update, delete
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models import (
@@ -24,6 +25,9 @@ from src.storage.database import (
     TaskDB,
     TechStackDB,
 )
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class ProjectRepository:
@@ -224,30 +228,63 @@ class ContextRepository:
         return ActiveContext()
 
     async def save(self, context: ActiveContext) -> ActiveContext:
-        """Save or update the active context."""
-        result = await self.session.execute(select(ActiveContextDB).limit(1))
-        existing = result.scalar_one_or_none()
+        """Save or update the active context with optimistic locking.
+        
+        Raises:
+            IntegrityError: If context was modified by another transaction
+        """
+        max_retries = 3
+        for attempt in range(max_retries):
+            result = await self.session.execute(select(ActiveContextDB).limit(1))
+            existing = result.scalar_one_or_none()
 
-        if existing:
-            existing.current_task = context.current_task
-            existing.related_files = context.related_files
-            existing.relevant_decisions = context.relevant_decisions
-            existing.notes = context.notes
-            existing.working_branch = context.working_branch
-            existing.session_id = context.session_id
-            existing.last_updated = context.last_updated
-        else:
-            db_context = ActiveContextDB(
-                id=1,
-                current_task=context.current_task,
-                related_files=context.related_files,
-                relevant_decisions=context.relevant_decisions,
-                notes=context.notes,
-                working_branch=context.working_branch,
-                session_id=context.session_id,
-                last_updated=context.last_updated,
-            )
-            self.session.add(db_context)
+            if existing:
+                # Optimistic locking - update only if version matches
+                update_result = await self.session.execute(
+                    update(ActiveContextDB)
+                    .where(ActiveContextDB.id == existing.id)
+                    .where(ActiveContextDB.version == existing.version)
+                    .values(
+                        current_task=context.current_task,
+                        related_files=context.related_files,
+                        relevant_decisions=context.relevant_decisions,
+                        notes=context.notes,
+                        working_branch=context.working_branch,
+                        session_id=context.session_id,
+                        last_updated=context.last_updated,
+                        version=existing.version + 1,
+                    )
+                )
+                
+                if update_result.rowcount == 0:
+                    # Version mismatch - context was modified
+                    if attempt < max_retries - 1:
+                        logger.warning(f"Context version conflict, retry {attempt + 1}/{max_retries}")
+                        await self.session.rollback()
+                        continue
+                    else:
+                        raise IntegrityError(
+                            "Context was modified by another transaction",
+                            None,
+                            None
+                        )
+            else:
+                db_context = ActiveContextDB(
+                    id=1,
+                    current_task=context.current_task,
+                    related_files=context.related_files,
+                    relevant_decisions=context.relevant_decisions,
+                    notes=context.notes,
+                    working_branch=context.working_branch,
+                    session_id=context.session_id,
+                    last_updated=context.last_updated,
+                    version=0,
+                )
+                self.session.add(db_context)
+            
+            return context
+        
+        return context
         return context
 
 
