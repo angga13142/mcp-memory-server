@@ -1,6 +1,7 @@
 """System-level metrics collection."""
 
 import logging
+from typing import Dict
 
 import psutil
 from prometheus_client import Counter, Gauge
@@ -15,6 +16,7 @@ class SystemMetrics(MetricCollector):
 
     def __init__(self):
         """Initialize system metrics."""
+        super().__init__()
         self.memory_usage: Gauge = None
         self.cpu_usage: Gauge = None
         self.disk_usage: Gauge = None
@@ -25,29 +27,39 @@ class SystemMetrics(MetricCollector):
     def register(self) -> None:
         """Register system metrics with Prometheus."""
         self.memory_usage = Gauge(
-            "mcp_system_memory_usage_bytes", "Memory usage in bytes"
+            "mcp_system_memory_usage_bytes",
+            "Memory usage in bytes",
+            registry=self.registry,
         )
 
         self.cpu_usage = Gauge(
-            "mcp_system_cpu_usage_percent", "CPU usage percentage (0-100)"
+            "mcp_system_cpu_usage_percent",
+            "CPU usage percentage (0-100)",
+            registry=self.registry,
         )
 
         self.disk_usage = Gauge(
-            "mcp_system_disk_usage_bytes", "Disk usage in bytes", ["mountpoint"]
+            "mcp_system_disk_usage_bytes",
+            "Disk usage in bytes",
+            ["mountpoint"],
+            registry=self.registry,
         )
 
         self.network_bytes_sent = Counter(
-            "mcp_system_network_bytes_sent_total", "Total bytes sent over network"
+            "mcp_system_network_bytes_sent_total",
+            "Total bytes sent over network",
+            registry=self.registry,
         )
 
         self.network_bytes_recv = Counter(
             "mcp_system_network_bytes_received_total",
             "Total bytes received over network",
+            registry=self.registry,
         )
 
         logger.info("System metrics registered")
 
-    def collect(self) -> dict[str, float]:
+    def collect(self) -> Dict[str, float]:
         """
         Collect current system metrics.
 
@@ -93,7 +105,7 @@ class SystemMetrics(MetricCollector):
 
         return metrics
 
-    def get_memory_info(self) -> dict[str, int]:
+    def get_memory_info(self) -> Dict[str, int]:
         """Get detailed memory information."""
         memory = psutil.virtual_memory()
         return {
@@ -104,7 +116,7 @@ class SystemMetrics(MetricCollector):
             "percent": memory.percent,
         }
 
-    def get_cpu_info(self) -> dict[str, float]:
+    def get_cpu_info(self) -> Dict[str, float]:
         """Get detailed CPU information."""
         return {
             "percent": psutil.cpu_percent(interval=1),
@@ -114,7 +126,7 @@ class SystemMetrics(MetricCollector):
             "load_avg_15m": psutil.getloadavg()[2],
         }
 
-    def get_disk_info(self) -> dict[str, int]:
+    def get_disk_info(self) -> Dict[str, int]:
         """Get detailed disk information."""
         disk = psutil.disk_usage("/")
         return {

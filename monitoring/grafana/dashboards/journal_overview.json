@@ -1,0 +1,224 @@
+{
+    "dashboard": {
+        "title": "Journal Overview",
+        "uid": "journal-overview",
+        "tags": [
+            "mcp",
+            "journal"
+        ],
+        "timezone": "browser",
+        "schemaVersion": 38,
+        "version": 1,
+        "refresh": "30s",
+        "panels": [
+            {
+                "id": 1,
+                "title": "Active Sessions",
+                "type": "stat",
+                "targets": [
+                    {
+                        "expr": "mcp_journal_sessions_active",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 6,
+                    "x": 0,
+                    "y": 0
+                },
+                "options": {
+                    "colorMode": "value",
+                    "graphMode": "area",
+                    "orientation": "auto"
+                }
+            },
+            {
+                "id": 2,
+                "title": "Total Sessions (Last Hour)",
+                "type": "stat",
+                "targets": [
+                    {
+                        "expr": "increase(mcp_journal_sessions_total[1h])",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 6,
+                    "x": 6,
+                    "y": 0
+                }
+            },
+            {
+                "id": 3,
+                "title": "Session Success Rate",
+                "type": "gauge",
+                "targets": [
+                    {
+                        "expr": "rate(mcp_journal_sessions_total{status='success'}[5m]) / rate(mcp_journal_sessions_total[5m])",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 6,
+                    "x": 12,
+                    "y": 0
+                },
+                "options": {
+                    "showThresholdLabels": false,
+                    "showThresholdMarkers": true
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "percentunit",
+                        "min": 0,
+                        "max": 1,
+                        "thresholds": {
+                            "mode": "absolute",
+                            "steps": [
+                                {
+                                    "value": 0,
+                                    "color": "red"
+                                },
+                                {
+                                    "value": 0.9,
+                                    "color": "yellow"
+                                },
+                                {
+                                    "value": 0.95,
+                                    "color": "green"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                "id": 4,
+                "title": "Reflections Generated (Last Hour)",
+                "type": "stat",
+                "targets": [
+                    {
+                        "expr": "increase(mcp_journal_reflections_generated_total{status='success'}[1h])",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 6,
+                    "x": 18,
+                    "y": 0
+                }
+            },
+            {
+                "id": 5,
+                "title": "Session Duration (P95)",
+                "type": "timeseries",
+                "targets": [
+                    {
+                        "expr": "histogram_quantile(0.95, rate(mcp_journal_session_duration_minutes_bucket[5m]))",
+                        "legendFormat": "P95 Duration",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 8
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "minutes"
+                    }
+                }
+            },
+            {
+                "id": 6,
+                "title": "Reflection Generation Time (P95)",
+                "type": "timeseries",
+                "targets": [
+                    {
+                        "expr": "histogram_quantile(0.95, rate(mcp_journal_reflection_generation_seconds_bucket[5m]))",
+                        "legendFormat": "P95 Generation Time",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 8
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "s"
+                    }
+                }
+            },
+            {
+                "id": 7,
+                "title": "Sessions Rate",
+                "type": "timeseries",
+                "targets": [
+                    {
+                        "expr": "rate(mcp_journal_sessions_total{status='success'}[5m])",
+                        "legendFormat": "Success",
+                        "refId": "A"
+                    },
+                    {
+                        "expr": "rate(mcp_journal_sessions_total{status='error'}[5m])",
+                        "legendFormat": "Error",
+                        "refId": "B"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 16
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "reqps"
+                    }
+                }
+            },
+            {
+                "id": 8,
+                "title": "Learnings, Challenges & Wins",
+                "type": "timeseries",
+                "targets": [
+                    {
+                        "expr": "rate(mcp_journal_learnings_captured_total[5m])",
+                        "legendFormat": "Learnings",
+                        "refId": "A"
+                    },
+                    {
+                        "expr": "rate(mcp_journal_challenges_noted_total[5m])",
+                        "legendFormat": "Challenges",
+                        "refId": "B"
+                    },
+                    {
+                        "expr": "rate(mcp_journal_wins_captured_total[5m])",
+                        "legendFormat": "Wins",
+                        "refId": "C"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 16
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "ops"
+                    }
+                }
+            }
+        ]
+    }
+}

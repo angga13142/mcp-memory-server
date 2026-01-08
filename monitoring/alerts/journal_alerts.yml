@@ -1,11 +1,26 @@
+# Alert Rules for Journal Operations
+
 groups:
   - name: journal_alerts
     interval: 30s
     rules:
+      # Service health
+      - alert: ServiceDown
+        expr: up{job="mcp-memory-server"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: application
+        annotations:
+          summary: "MCP Memory Server is down"
+          description: "The MCP Memory Server has been down for more than 1 minute."
+          runbook: "https://docs.example.com/runbooks/service-down"
+
+      # Session failures
       - alert: HighSessionFailureRate
         expr: |
           (
-            rate(mcp_journal_sessions_total{status="failed"}[5m]) 
+            rate(mcp_journal_sessions_total{status="error"}[5m]) 
             / 
             rate(mcp_journal_sessions_total[5m])
           ) > 0.1
@@ -14,43 +29,51 @@ groups:
           severity: warning
           component: journal
         annotations:
-          summary: "High session failure rate"
-          description: "More than 10% of work sessions are failing"
+          summary: "High session failure rate detected"
+          description: "Session failure rate is {{ $value | humanizePercentage }} (threshold: 10%)"
+          runbook: "https://docs.example.com/runbooks/session-failures"
 
+      # Reflection generation failures
       - alert: ReflectionGenerationFailing
         expr: |
-          rate(mcp_journal_reflections_generated_total{status="failed"}[10m]) > 0
-        for: 10m
+          rate(mcp_journal_reflections_generated_total{status="error"}[5m]) > 0.5
+        for: 5m
         labels:
           severity: warning
           component: journal
         annotations:
           summary: "Reflection generation is failing"
-          description: "AI reflection generation has been failing for 10 minutes"
+          description: "Reflection generation error rate: {{ $value }} errors/sec"
+          runbook: "https://docs.example.com/runbooks/reflection-failures"
 
+      # Slow reflection generation
       - alert: SlowReflectionGeneration
         expr: |
           histogram_quantile(0.95, 
             rate(mcp_journal_reflection_generation_seconds_bucket[5m])
-          ) > 30
+          ) > 10
         for: 10m
         labels:
           severity: warning
           component: journal
         annotations:
           summary: "Reflection generation is slow"
-          description: "95th percentile reflection generation time exceeds 30s"
+          description: "P95 reflection generation time is {{ $value }}s (threshold: 10s)"
+          runbook: "https://docs.example.com/runbooks/slow-reflections"
 
+      # Too many active sessions
       - alert: TooManyActiveSessions
-        expr: mcp_journal_sessions_active > 10
-        for: 15m
+        expr: mcp_journal_sessions_active > 100
+        for: 5m
         labels:
           severity: warning
           component: journal
         annotations:
-          summary: "Unusually high number of active sessions"
-          description: "Possible session leak detected"
+          summary: "Too many active sessions"
+          description: "Currently {{ $value }} active sessions (threshold: 100)"
+          runbook: "https://docs.example.com/runbooks/high-session-count"
 
+      # Slow database queries
       - alert: SlowDatabaseQueries
         expr: |
           histogram_quantile(0.95,
@@ -62,35 +85,35 @@ groups:
           component: database
         annotations:
           summary: "Database queries are slow"
-          description: "95th percentile query time exceeds 1s"
+          description: "P95 query duration is {{ $value }}s (threshold: 1s)"
+          runbook: "https://docs.example.com/runbooks/slow-queries"
 
+      # Vector store failures
       - alert: VectorStoreEmbeddingFailures
         expr: |
-          rate(mcp_vector_embeddings_generated_total{status="failed"}[10m]) > 0.1
+          rate(mcp_vector_embeddings_generated_total{status="error"}[5m]) > 0.5
         for: 5m
         labels:
-          severity: critical
-          component: vector_store
+          severity: warning
+          component: vector-store
         annotations:
-          summary: "Vector store embedding failures"
-          description: "Embedding generation is failing"
+          summary: "Vector store embedding generation failing"
+          description: "Embedding error rate: {{ $value }} errors/sec"
+          runbook: "https://docs.example.com/runbooks/embedding-failures"
 
+      # High memory usage (basic - will be enhanced in Phase 5.1)
       - alert: HighMemoryUsage
-        expr: mcp_system_memory_usage_bytes / (4 * 1024 * 1024 * 1024) > 0.9
-        for: 10m
+        expr: |
+          (
+            process_resident_memory_bytes{job="mcp-memory-server"}
+            / 
+            (4 * 1024 * 1024 * 1024)
+          ) > 0.9
+        for: 5m
         labels:
           severity: warning
           component: system
         annotations:
-          summary: "High memory usage"
-          description: "Memory usage exceeds 90%"
-
-      - alert: ServiceDown
-        expr: up{job="mcp-memory-server"} == 0
-        for: 2m
-        labels:
-          severity: critical
-          component: service
-        annotations:
-          summary: "MCP Memory Server is down"
-          description: "Service has been down for 2 minutes"
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value | humanizePercentage }} (threshold: 90%)"
+          runbook: "https://docs.example.com/runbooks/high-memory"

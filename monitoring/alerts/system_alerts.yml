@@ -1,17 +1,44 @@
+# System-level Alert Rules (Phase 5.1)
+
 groups:
   - name: system_alerts
     interval: 30s
     rules:
+      # High memory usage
       - alert: HighMemoryUsage
-        expr: mcp_system_memory_usage_bytes / (1024 * 1024 * 1024 * 4) > 0.9
+        expr: |
+          (
+            mcp_system_memory_usage_bytes 
+            / 
+            (8 * 1024 * 1024 * 1024)
+          ) > 0.85
         for: 5m
         labels:
           severity: warning
           component: system
         annotations:
           summary: "High memory usage detected"
-          description: "Memory usage is above 90% (current: {{ $value | humanizePercentage }})"
-          
+          description: "Memory usage is {{ $value | humanizePercentage }} (threshold: 85%)"
+          runbook: "https://docs.example.com/runbooks/high-memory"
+
+      # Critical memory usage
+      - alert: CriticalMemoryUsage
+        expr: |
+          (
+            mcp_system_memory_usage_bytes 
+            / 
+            (8 * 1024 * 1024 * 1024)
+          ) > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "Critical memory usage"
+          description: "Memory usage is {{ $value | humanizePercentage }} - immediate action required"
+          runbook: "https://docs.example.com/runbooks/critical-memory"
+
+      # High CPU usage
       - alert: HighCPUUsage
         expr: mcp_system_cpu_usage_percent > 80
         for: 5m
@@ -20,24 +47,51 @@ groups:
           component: system
         annotations:
           summary: "High CPU usage detected"
-          description: "CPU usage is above 80% (current: {{ $value }}%)"
-          
+          description: "CPU usage is {{ $value }}% (threshold: 80%)"
+          runbook: "https://docs.example.com/runbooks/high-cpu"
+
+      # Critical CPU usage
+      - alert: CriticalCPUUsage
+        expr: mcp_system_cpu_usage_percent > 95
+        for: 2m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "Critical CPU usage"
+          description: "CPU usage is {{ $value }}% - immediate action required"
+          runbook: "https://docs.example.com/runbooks/critical-cpu"
+
+      # High disk usage
       - alert: HighDiskUsage
-        expr: mcp_system_disk_usage_bytes / (1024 * 1024 * 1024 * 50) > 0.9
+        expr: |
+          (
+            mcp_system_disk_usage_bytes{mountpoint="/"}
+            / 
+            (100 * 1024 * 1024 * 1024)
+          ) > 0.85
         for: 10m
         labels:
           severity: warning
           component: system
         annotations:
           summary: "High disk usage detected"
-          description: "Disk usage is above 90%"
-          
-      - alert: CriticalMemoryUsage
-        expr: mcp_system_memory_usage_bytes / (1024 * 1024 * 1024 * 4) > 0.95
-        for: 2m
+          description: "Disk usage is {{ $value | humanizePercentage }} (threshold: 85%)"
+          runbook: "https://docs.example.com/runbooks/high-disk"
+
+      # Critical disk usage
+      - alert: CriticalDiskUsage
+        expr: |
+          (
+            mcp_system_disk_usage_bytes{mountpoint="/"}
+            / 
+            (100 * 1024 * 1024 * 1024)
+          ) > 0.95
+        for: 5m
         labels:
           severity: critical
           component: system
-        annotations:
-          summary: "Critical memory usage"
-          description: "Memory usage is above 95% - immediate action required"
+        annotations: 
+          summary: "Critical disk usage"
+          description: "Disk usage is {{ $value | humanizePercentage }} - immediate action required"
+          runbook: "https://docs.example.com/runbooks/critical-disk"

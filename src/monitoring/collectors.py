@@ -1,8 +1,8 @@
 """Background metric collectors."""
 
 import asyncio
-import contextlib
 import logging
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class SystemMetricsCollector:
             interval: Collection interval in seconds (default: 15)
         """
         self.interval = interval
-        self._task: asyncio.Task | None = None
+        self._task: Optional[asyncio.Task] = None
         self._running = False
 
     async def start(self) -> None:
@@ -37,8 +37,10 @@ class SystemMetricsCollector:
 
         if self._task:
             self._task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
+            try:
                 await self._task
+            except asyncio.CancelledError:
+                pass
 
         logger.info("System metrics collector stopped")
 

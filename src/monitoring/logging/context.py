@@ -1,117 +1,102 @@
-"""
-Module: context.py
+"""Logging context management."""
 
-Description:
-    Context variable helpers for propagating correlation, user, and
-    request identifiers through log records.
-
-Usage:
-    with LogContext(user_id="alice"):
-        logger.info("processing request")
-
-Author: GitHub Copilot
-Date: 2026-01-08
-"""
-
-from __future__ import annotations
-
+import logging
+import uuid
 from contextvars import ContextVar
-from uuid import uuid4
+from typing import Optional
 
-_correlation_id: ContextVar[str | None] = ContextVar("correlation_id", default=None)
-_user_id: ContextVar[str | None] = ContextVar("user_id", default=None)
-_request_id: ContextVar[str | None] = ContextVar("request_id", default=None)
+# Context variables
+correlation_id_var: ContextVar[Optional[str]] = ContextVar(
+    "correlation_id", default=None
+)
+user_id_var: ContextVar[Optional[str]] = ContextVar("user_id", default=None)
+request_id_var: ContextVar[Optional[str]] = ContextVar("request_id", default=None)
+
+
+def get_correlation_id() -> str:
+    """Get current correlation ID or generate new one."""
+    correlation_id = correlation_id_var.get()
+    if correlation_id is None:
+        correlation_id = str(uuid.uuid4())
+        correlation_id_var.set(correlation_id)
+    return correlation_id
 
 
 def set_correlation_id(correlation_id: str) -> None:
-    _correlation_id.set(correlation_id)
-
-
-def get_correlation_id() -> str | None:
-    return _correlation_id.get()
+    """Set correlation ID for current context."""
+    correlation_id_var.set(correlation_id)
 
 
 def generate_correlation_id() -> str:
-    return str(uuid4())
+    """Generate and set a new correlation ID."""
+    new_id = str(uuid.uuid4())
+    set_correlation_id(new_id)
+    return new_id
+
+
+def clear_correlation_id() -> None:
+    """Clear correlation ID from current context."""
+    correlation_id_var.set(None)
+
+
+# User ID Management
+def get_user_id() -> Optional[str]:
+    """Get current user ID."""
+    return user_id_var.get()
 
 
 def set_user_id(user_id: str) -> None:
-    _user_id.set(user_id)
+    """Set current user ID."""
+    user_id_var.set(user_id)
 
 
-def get_user_id() -> str | None:
-    return _user_id.get()
+# Request ID Management
+def get_request_id() -> Optional[str]:
+    """Get current request ID."""
+    return request_id_var.get()
 
 
 def set_request_id(request_id: str) -> None:
-    _request_id.set(request_id)
+    """Set current request ID."""
+    request_id_var.set(request_id)
 
 
-def get_request_id() -> str | None:
-    return _request_id.get()
+# Alias for compatibility
+clear_context = clear_correlation_id
 
 
-def clear_context() -> None:
-    _correlation_id.set(None)
-    _user_id.set(None)
-    _request_id.set(None)
+class CorrelationIdFilter(logging.Filter):
+    """Add correlation ID to log records."""
+
+    def filter(self, record):
+        """Add correlation ID to record."""
+        record.correlation_id = get_correlation_id()
+        record.user_id = get_user_id()
+        record.request_id = get_request_id()
+        return True
 
 
 class LogContext:
-    """Context manager for logging context propagation."""
+    """Context manager for logging context."""
 
     def __init__(
-        self,
-        correlation_id: str | None = None,
-        user_id: str | None = None,
-        request_id: str | None = None,
-    ) -> None:
-        self.correlation_id = correlation_id or generate_correlation_id()
+        self, correlation_id: Optional[str] = None, user_id: Optional[str] = None
+    ):
+        """Initialize context."""
+        self.correlation_id = correlation_id or str(uuid.uuid4())
         self.user_id = user_id
-        self.request_id = request_id
-
-        self._prev_correlation_id: str | None = None
-        self._prev_user_id: str | None = None
-        self._prev_request_id: str | None = None
+        self._tokens = {}
 
     def __enter__(self):
-        self._prev_correlation_id = get_correlation_id()
-        self._prev_user_id = get_user_id()
-        self._prev_request_id = get_request_id()
-
-        set_correlation_id(self.correlation_id)
+        """Enter context."""
+        self._tokens["correlation_id"] = correlation_id_var.set(self.correlation_id)
         if self.user_id:
-            set_user_id(self.user_id)
-        if self.request_id:
-            set_request_id(self.request_id)
-
+            self._tokens["user_id"] = user_id_var.set(self.user_id)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self._prev_correlation_id:
-            set_correlation_id(self._prev_correlation_id)
-        else:
-            _correlation_id.set(None)
-
-        if self._prev_user_id:
-            set_user_id(self._prev_user_id)
-        else:
-            _user_id.set(None)
-
-        if self._prev_request_id:
-            set_request_id(self._prev_request_id)
-        else:
-            _request_id.set(None)
-
-
-__all__ = [
-    "set_correlation_id",
-    "get_correlation_id",
-    "generate_correlation_id",
-    "set_user_id",
-    "get_user_id",
-    "set_request_id",
-    "get_request_id",
-    "LogContext",
-    "clear_context",
-]
+        """Exit context."""
+        if "correlation_id" in self._tokens:
+            correlation_id_var.reset(self._tokens["correlation_id"])
+        if "user_id" in self._tokens:
+            user_id_var.reset(self._tokens["user_id"])

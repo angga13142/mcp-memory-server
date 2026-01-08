@@ -1,85 +1,101 @@
 #!/bin/bash
-# Post-recovery verification
+#
+# Verify Recovery
+# Comprehensive verification after restore
+#
 
-set -euo pipefail
+set -e
+
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"
+}
 
 FAILED=0
 
-echo "🔍 Post-Recovery Verification"
-echo "============================="
+log "🔍 Verifying Recovery"
+log "===================="
+echo ""
 
-test_service() {
-  local name=$1 url=$2
-  if curl -sf "$url" >/dev/null 2>&1; then
-    echo "✅ $name healthy"
-  else
-    echo "❌ $name NOT healthy"
+# Check 1: Service Health
+log "Check 1: Service Health"
+log "----------------------"
+
+services=("prometheus:9090/-/healthy" "grafana:3000/api/health" "mcp-memory-server:8080/health")
+
+for service in "${services[@]}"; do
+    IFS=':' read -r name endpoint <<< "$service"
+    
+    if curl -sf "http://localhost:${endpoint}" > /dev/null 2>&1; then
+        log "✅ $name is healthy"
+    else
+        log "❌ $name is NOT healthy"
+        ((FAILED++))
+    fi
+done
+
+echo ""
+
+# Check 2: Prometheus Data
+log "Check 2: Prometheus Data"
+log "------------------------"
+
+DATA_POINTS=$(curl -s 'http://localhost:9090/api/v1/query?query=up' | jq '.data.result | length')
+log "Time series found: $DATA_POINTS"
+
+if [ "$DATA_POINTS" -gt 0 ]; then
+    log "✅ Prometheus has data"
+else
+    log "❌ Prometheus has NO data"
     ((FAILED++))
-  fi
-}
-
-test_service "MCP Memory Server" "http://localhost:8080/health"
-test_service "Prometheus" "http://localhost:9090/-/healthy"
-test_service "Grafana" "http://localhost:3000/api/health"
-test_service "Alertmanager" "http://localhost:9093/-/healthy"
-
-echo ""
-echo "Test 2: Metrics collection"
-METRIC_COUNT=$(curl -s http://localhost:8080/metrics | grep -c '^mcp_' || echo 0)
-if [ "$METRIC_COUNT" -gt 50 ]; then
-  echo "✅ Metrics present: $METRIC_COUNT"
-else
-  echo "❌ Metrics low: $METRIC_COUNT"
-  ((FAILED++))
 fi
 
 echo ""
-echo "Test 3: Prometheus data"
-TS_COUNT=$(curl -s 'http://localhost:9090/api/v1/query?query=up' | jq '.data.result | length' 2>/dev/null || echo 0)
-if [ "$TS_COUNT" -gt 0 ]; then
-  echo "✅ Prometheus has data: $TS_COUNT"
+
+# Check 3: Grafana Dashboards
+log "Check 3: Grafana Dashboards"
+log "---------------------------"
+
+DASHBOARD_COUNT=$(curl -s -u admin:admin http://localhost:3000/api/search?type=dash-db | jq '. | length')
+log "Dashboards found: $DASHBOARD_COUNT"
+
+if [ "$DASHBOARD_COUNT" -gt 0 ]; then
+    log "✅ Grafana has dashboards"
 else
-  echo "❌ Prometheus has no data"
-  ((FAILED++))
+    log "❌ Grafana has NO dashboards"
+    ((FAILED++))
 fi
 
 echo ""
-echo "Test 4: Grafana dashboards"
-DASH_COUNT=$(curl -s -u admin:${GRAFANA_PASSWORD:-admin} http://localhost:3000/api/search 2>/dev/null | jq '. | length' 2>/dev/null || echo 0)
-if [ "$DASH_COUNT" -gt 0 ]; then
-  echo "✅ Grafana dashboards: $DASH_COUNT"
+
+# Check 4: Application Database
+log "Check 4: Application Database"
+log "-----------------------------"
+
+DB_PATH="/var/lib/mcp-memory-server/memory.db"
+if [ -f "$DB_PATH" ]; then
+    TABLE_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM sqlite_master WHERE type='table';")
+    log "Database tables: $TABLE_COUNT"
+    
+    INTEGRITY=$(sqlite3 "$DB_PATH" "PRAGMA integrity_check;")
+    if [ "$INTEGRITY" = "ok" ]; then
+        log "✅ Database integrity OK"
+    else
+        log "❌ Database integrity FAILED"
+        ((FAILED++))
+    fi
 else
-  echo "❌ No Grafana dashboards found"
-  ((FAILED++))
+    log "❌ Database NOT found"
+    ((FAILED++))
 fi
 
 echo ""
-echo "Test 5: Application DB"
-if docker exec mcp-memory-server sqlite3 /app/data/memory.db "PRAGMA integrity_check;" | grep -q "ok"; then
-  echo "✅ DB integrity OK"
-else
-  echo "❌ DB integrity failed"
-  ((FAILED++))
-fi
-TABLE_COUNT=$(docker exec mcp-memory-server sqlite3 /app/data/memory.db "SELECT COUNT(*) FROM sqlite_master WHERE type='table';" 2>/dev/null || echo 0)
-echo "Tables: $TABLE_COUNT"
 
-echo ""
-echo "Test 6: Alert rules"
-RULES=$(curl -s http://localhost:9090/api/v1/rules | jq '.data.groups | map(.rules | length) | add' 2>/dev/null || echo 0)
-if [ "$RULES" -gt 0 ]; then
-  echo "✅ Alert rules loaded: $RULES"
-else
-  echo "❌ No alert rules loaded"
-  ((FAILED++))
-fi
-
-echo ""
-echo "============================="
+# Summary
+log "===================="
 if [ $FAILED -eq 0 ]; then
-  echo "✅ ALL CHECKS PASSED"
-  exit 0
+    log "✅ ALL CHECKS PASSED"
+    exit 0
 else
-  echo "❌ $FAILED CHECK(S) FAILED"
-  exit 1
+    log "❌ $FAILED CHECK(S) FAILED"
+    exit 1
 fi

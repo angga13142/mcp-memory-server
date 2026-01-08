@@ -1,115 +1,131 @@
 #!/bin/bash
-# Grafana restore script (dashboards, datasources, optional DB)
+#
+# Restore Grafana from Backup
+#
 
-set -euo pipefail
+set -e
 
-BACKUP_DIR="/var/backups/mcp-monitoring/grafana"
-LOG_FILE="/var/backups/mcp-monitoring/logs/grafana_restore.log"
-GRAFANA_URL="http://localhost:3000"
-GRAFANA_USER="admin"
+# Configuration
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/mcp-monitoring/grafana}"
+GRAFANA_URL="${GRAFANA_URL:-http://localhost:3000}"
+GRAFANA_USER="${GRAFANA_USER:-admin}"
 GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-admin}"
-DOCKER_COMPOSE_FILE="docker-compose.monitoring.yml"
-GRAFANA_CONTAINER="grafana"
+BACKUP_FILE="${1:-latest}"
 
+# Logging
+LOG_FILE="/var/log/mcp-backups/grafana-restore.log"
 mkdir -p "$(dirname "$LOG_FILE")"
 
-log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"; }
-fail() { log "❌ ERROR: $1"; exit 1; }
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+}
 
-[ $# -ge 1 ] || fail "Usage: $0 <backup.tar.gz> | latest"
-BACKUP_FILE="$1"
+error() {
+    log "ERROR: $*"
+    exit 1
+}
+
+log "Starting Grafana restore..."
+
+# Determine backup file
 if [ "$BACKUP_FILE" = "latest" ]; then
-  BACKUP_FILE=$(find "$BACKUP_DIR" -name "grafana_*.tar.gz" -type f -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2)
-  [ -n "$BACKUP_FILE" ] || fail "No backups found"
-  log "Using latest: $(basename "$BACKUP_FILE")"
-fi
-[ -f "$BACKUP_FILE" ] || fail "Backup not found: $BACKUP_FILE"
-
-if [ -f "${BACKUP_FILE}.sha256" ]; then
-  EXPECTED=$(cat "${BACKUP_FILE}.sha256")
-  ACTUAL=$(sha256sum "$BACKUP_FILE" | cut -d' ' -f1)
-  [ "$EXPECTED" = "$ACTUAL" ] || fail "Checksum mismatch"
-  log "✅ Checksum verified"
+    BACKUP_FILE="${BACKUP_DIR}/latest.tar.gz"
+elif [ ! -f "$BACKUP_FILE" ]; then
+    BACKUP_FILE="${BACKUP_DIR}/${BACKUP_FILE}"
 fi
 
-tar -tzf "$BACKUP_FILE" >/dev/null || fail "Archive corrupt"
-
-TMPDIR=$(mktemp -d)
-tar -xzf "$BACKUP_FILE" -C "$TMPDIR"
-EXTRACT_DIR=$(find "$TMPDIR" -mindepth 1 -maxdepth 1 -type d | head -1)
-[ -n "$EXTRACT_DIR" ] || { rm -rf "$TMPDIR"; fail "No extracted directory"; }
-
-if ! docker ps --format '{{.Names}}' | grep -q "^${GRAFANA_CONTAINER}$"; then
-  docker-compose -f "$DOCKER_COMPOSE_FILE" start "$GRAFANA_CONTAINER"
-  sleep 10
+if [ ! -f "$BACKUP_FILE" ]; then
+    error "Backup file not found: $BACKUP_FILE"
 fi
 
-for i in $(seq 1 30); do
-  if curl -sf -u "$GRAFANA_USER:$GRAFANA_PASSWORD" "$GRAFANA_URL/api/health" >/dev/null 2>&1; then
-    break
-  fi
-  sleep 2
-done
+log "Using backup: $BACKUP_FILE"
 
-# Restore datasources
-if [ -f "$EXTRACT_DIR/datasources.json" ]; then
-  COUNT=$(jq '. | length' "$EXTRACT_DIR/datasources.json")
-  log "Restoring $COUNT datasources"
-  jq -c '.[]' "$EXTRACT_DIR/datasources.json" | while read -r ds; do
-    NAME=$(echo "$ds" | jq -r '.name')
-    BODY=$(echo "$ds" | jq 'del(.id, .uid)')
-    RESP=$(curl -s -X POST -u "$GRAFANA_USER:$GRAFANA_PASSWORD" -H "Content-Type: application/json" "$GRAFANA_URL/api/datasources" -d "$BODY")
-    if echo "$RESP" | jq -e '.id' >/dev/null 2>&1; then
-      log "✅ Datasource restored: $NAME"
-    else
-      log "⚠️  Datasource may already exist: $NAME"
+# Verify checksum
+CHECKSUM_FILE="${BACKUP_FILE}.sha256"
+if [ -f "$CHECKSUM_FILE" ]; then
+    log "Verifying checksum..."
+    cd "$(dirname "$BACKUP_FILE")"
+    if ! sha256sum -c "$(basename "$CHECKSUM_FILE")"; then
+        error "Checksum verification failed"
     fi
-  done
+    log "Checksum verified"
 fi
+
+# Extract backup
+log "Extracting backup..."
+TEMP_DIR=$(mktemp -d)
+tar -xzf "$BACKUP_FILE" -C "$TEMP_DIR"
+
+# Find backup directory
+BACKUP_EXTRACT_DIR=$(find "$TEMP_DIR" -type d -name "grafana_*" | head -1)
+
+if [ -z "$BACKUP_EXTRACT_DIR" ]; then
+    error "Backup directory not found"
+fi
+
+# Wait for Grafana to be ready
+log "Waiting for Grafana..."
+for i in {1..30}; do
+    if curl -sf "${GRAFANA_URL}/api/health" > /dev/null 2>&1; then
+        break
+    fi
+    sleep 2
+done
 
 # Restore dashboards
-DASH_COUNT=0
-for f in $(find "$EXTRACT_DIR" -name 'dashboard_*.json' 2>/dev/null || true); do
-  TITLE=$(jq -r '.dashboard.title // "Unknown"' "$f")
-  BODY=$(jq '{dashboard: (.dashboard // . | del(.id, .uid, .version)), overwrite: true, message: "Restored from backup"}' "$f")
-  RESP=$(curl -s -X POST -u "$GRAFANA_USER:$GRAFANA_PASSWORD" -H "Content-Type: application/json" "$GRAFANA_URL/api/dashboards/db" -d "$BODY")
-  if echo "$RESP" | jq -e '.id' >/dev/null 2>&1; then
-    ((DASH_COUNT++))
-    log "✅ Dashboard restored: $TITLE"
-  else
-    MSG=$(echo "$RESP" | jq -r '.message // "unknown"')
-    log "⚠️  Failed to restore $TITLE: $MSG"
-  fi
-done
+log "Restoring dashboards..."
+DASHBOARD_COUNT=0
 
-# Optional DB restore
-if [ -f "$EXTRACT_DIR/grafana.db.gz" ]; then
-  read -r -p "Restore Grafana DB (overwrites everything)? [y/N]: " CONFIRM
-  if [[ $CONFIRM =~ ^[Yy]$ ]]; then
-    docker-compose -f "$DOCKER_COMPOSE_FILE" stop "$GRAFANA_CONTAINER"
-    gunzip -c "$EXTRACT_DIR/grafana.db.gz" > /tmp/grafana.db
-    docker cp /tmp/grafana.db "$GRAFANA_CONTAINER":/var/lib/grafana/grafana.db
-    rm -f /tmp/grafana.db
-    docker-compose -f "$DOCKER_COMPOSE_FILE" start "$GRAFANA_CONTAINER"
-    sleep 10
-    log "✅ Grafana DB restored"
-  else
-    log "Skipped DB restore"
-  fi
+if [ -d "${BACKUP_EXTRACT_DIR}/dashboards" ]; then
+    for dashboard_file in "${BACKUP_EXTRACT_DIR}/dashboards"/*.json; do
+        if [ -f "$dashboard_file" ]; then
+            log "Restoring dashboard: $(basename "$dashboard_file")"
+            
+            # Extract dashboard JSON
+            DASHBOARD_JSON=$(jq '.dashboard' "$dashboard_file")
+            
+            # Create import payload
+            IMPORT_PAYLOAD=$(jq -n \
+                --argjson dashboard "$DASHBOARD_JSON" \
+                '{dashboard: $dashboard, overwrite: true}')
+            
+            # Import dashboard
+            curl -sf -X POST \
+                -u "${GRAFANA_USER}:${GRAFANA_PASSWORD}" \
+                -H "Content-Type: application/json" \
+                -d "$IMPORT_PAYLOAD" \
+                "${GRAFANA_URL}/api/dashboards/db" > /dev/null
+            
+            if [ $? -eq 0 ]; then
+                ((DASHBOARD_COUNT++))
+            else
+                log "WARNING: Failed to restore dashboard: $(basename "$dashboard_file")"
+            fi
+        fi
+    done
 fi
 
-rm -rf "$TMPDIR"
+log "Restored $DASHBOARD_COUNT dashboards"
 
-log "================================================"
-log "✅ GRAFANA RESTORE COMPLETE"
-log "Dashboards restored: $DASH_COUNT"
-log "Backup file: $(basename "$BACKUP_FILE")"
-log "================================================"
-
-if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
-  curl -X POST "$SLACK_WEBHOOK_URL" \
-    -H 'Content-Type: application/json' \
-    -d "{\"text\":\"✅ Grafana restored ($DASH_COUNT dashboards)\"}" >/dev/null 2>&1 || true
+# Restore datasources
+log "Restoring datasources..."
+if [ -f "${BACKUP_EXTRACT_DIR}/datasources.json" ]; then
+    jq -c '.[]' "${BACKUP_EXTRACT_DIR}/datasources.json" | while read datasource; do
+        DS_NAME=$(echo "$datasource" | jq -r '.name')
+        log "Restoring datasource: $DS_NAME"
+        
+        curl -sf -X POST \
+            -u "${GRAFANA_USER}:${GRAFANA_PASSWORD}" \
+            -H "Content-Type: application/json" \
+            -d "$datasource" \
+            "${GRAFANA_URL}/api/datasources" > /dev/null || true
+    done
 fi
+
+# Cleanup
+rm -rf "$TEMP_DIR"
+
+log "Restore completed successfully"
+log "Restored $DASHBOARD_COUNT dashboards"
 
 exit 0

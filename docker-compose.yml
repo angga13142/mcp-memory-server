@@ -60,6 +60,12 @@ services:
     
     networks:
       - mcp-network
+      - monitoring
+
+    labels:
+      - "prometheus.scrape=true"
+      - "prometheus.port=8080"
+      - "prometheus.path=/metrics"
 
   redis:
     image: redis:7-alpine
@@ -88,6 +94,7 @@ services:
     
     networks:
       - mcp-network
+      - monitoring
 
 volumes:
   redis-data:
@@ -96,6 +103,9 @@ volumes:
 networks:
   mcp-network:
     driver: bridge
+  monitoring:
+    external: true
+    name: mcp-memory-server_monitoring
   memory-data:
     name: mcp-memory-data
   memory-dev-data:

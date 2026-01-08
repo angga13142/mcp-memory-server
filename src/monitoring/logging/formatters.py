@@ -1,101 +1,107 @@
-"""
-Module: formatters.py
-
-Description:
-    Logging formatters for structured JSON output and colored console
-    output.
-
-Usage:
-    formatter = StructuredFormatter()
-    handler.setFormatter(formatter)
-
-Author: GitHub Copilot
-Date: 2026-01-08
-"""
-
-from __future__ import annotations
+"""Structured logging formatters."""
 
 import json
 import logging
 from datetime import datetime
-from typing import Any
-
-from .context import get_correlation_id, get_user_id
+from typing import Any, Dict
 
 
-class StructuredFormatter(logging.Formatter):
-    """JSON formatter for structured logging."""
-
-    def __init__(self, include_extra: bool = True) -> None:
-        super().__init__()
-        self.include_extra = include_extra
+class JSONFormatter(logging.Formatter):
+    """Format logs as JSON."""
 
     def format(self, record: logging.LogRecord) -> str:
-        log_data = self._build_base_log(record)
-
-        if self.include_extra:
-            log_data.update(self._extract_extra_fields(record))
-
-        if record.exc_info:
-            log_data["exception"] = self._format_exception(record)
-
-        return json.dumps(log_data, default=str)
-
-    def _build_base_log(self, record: logging.LogRecord) -> dict[str, Any]:
-        return {
-            "@timestamp": datetime.utcnow().isoformat() + "Z",
+        """Format log record as JSON."""
+        log_data: Dict[str, Any] = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
             "module": record.module,
             "function": record.funcName,
             "line": record.lineno,
-            "thread": record.thread,
-            "thread_name": record.threadName,
         }
 
-    def _extract_extra_fields(self, record: logging.LogRecord) -> dict[str, Any]:
-        extra: dict[str, Any] = {}
+        # Add exception info if present
+        if record.exc_info:
+            log_data["exception"] = self.formatException(record.exc_info)
 
-        correlation_id = get_correlation_id()
-        if correlation_id:
-            extra["correlation_id"] = correlation_id
+        # Add extra fields
+        if hasattr(record, "correlation_id"):
+            log_data["correlation_id"] = record.correlation_id
 
-        user_id = get_user_id()
-        if user_id:
-            extra["user_id"] = user_id
+        if hasattr(record, "user_id"):
+            log_data["user_id"] = record.user_id
 
-        if hasattr(record, "extra_data"):
-            extra.update(record.extra_data)
+        # Add custom fields from extra
+        for key, value in record.__dict__.items():
+            if key not in [
+                "name",
+                "msg",
+                "args",
+                "created",
+                "filename",
+                "funcName",
+                "levelname",
+                "levelno",
+                "lineno",
+                "module",
+                "msecs",
+                "message",
+                "pathname",
+                "process",
+                "processName",
+                "relativeCreated",
+                "thread",
+                "threadName",
+                "exc_info",
+                "exc_text",
+                "stack_info",
+                "correlation_id",
+                "user_id",
+                "request_id",
+            ]:
+                try:
+                    json.dumps(value)  # Check if JSON serializable
+                    log_data[key] = value
+                except (TypeError, ValueError):
+                    log_data[key] = str(value)
 
-        return extra
+        return json.dumps(log_data)
 
-    def _format_exception(self, record: logging.LogRecord) -> dict[str, Any]:
-        # Extract exception type, message, and stack trace so downstream
-        # log processors can index these fields individually.
-        return {
-            "type": record.exc_info[0].__name__,
-            "message": str(record.exc_info[1]),
-            "traceback": self.formatException(record.exc_info),
-        }
+
+# Alias
+StructuredFormatter = JSONFormatter
 
 
 class ColoredFormatter(logging.Formatter):
-    """Colored formatter for console output."""
+    """Format logs with colors for console output."""
 
-    COLORS = {
-        "DEBUG": "\033[36m",  # Cyan
-        "INFO": "\033[32m",  # Green
-        "WARNING": "\033[33m",  # Yellow
-        "ERROR": "\033[31m",  # Red
-        "CRITICAL": "\033[35m",  # Magenta
+    grey = "\x1b[38;20m"
+    blue = "\x1b[38;5;39m"
+    yellow = "\x1b[33;20m"
+    red = "\x1b[31;20m"
+    bold_red = "\x1b[31;1m"
+    reset = "\x1b[0m"
+
+    FORMATS = {
+        logging.DEBUG: grey
+        + "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        + reset,
+        logging.INFO: blue
+        + "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        + reset,
+        logging.WARNING: yellow
+        + "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        + reset,
+        logging.ERROR: red
+        + "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        + reset,
+        logging.CRITICAL: bold_red
+        + "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        + reset,
     }
-    RESET = "\033[0m"
 
-    def format(self, record: logging.LogRecord) -> str:
-        color = self.COLORS.get(record.levelname, self.RESET)
-        formatted = super().format(record)
-        return f"{color}{formatted}{self.RESET}"
-
-
-__all__ = ["StructuredFormatter", "ColoredFormatter"]
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)

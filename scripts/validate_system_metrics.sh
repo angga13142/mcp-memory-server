@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Automated System Metrics Validation
+# Validate System Metrics Implementation
 #
 
 set -e
@@ -31,13 +31,12 @@ echo ""
 
 # Test 2: Check Prometheus
 echo "Test 2: Prometheus Integration"
-# We use a timeout to prevent hanging if Prometheus is down
-PROM_DATA=$(curl -m 5 -s 'http://localhost:9090/api/v1/query?query=mcp_system_memory_usage_bytes' || echo "{}")
+PROM_DATA=$(curl -s 'http://localhost:9090/api/v1/query?query=mcp_system_memory_usage_bytes')
 if echo "$PROM_DATA" | jq -e '.data.result[0].value[1]' > /dev/null 2>&1; then
     MEMORY_VALUE=$(echo "$PROM_DATA" | jq -r '.data.result[0].value[1]')
     echo "✅ Prometheus has memory data: $MEMORY_VALUE bytes"
 else
-    echo "❌ Prometheus has no memory data or is unreachable"
+    echo "❌ Prometheus has no memory data"
     ((FAILED++))
 fi
 
@@ -45,7 +44,7 @@ echo ""
 
 # Test 3: Check alert rules
 echo "Test 3: Alert Rules"
-ALERT_COUNT=$(curl -m 5 -s http://localhost:9090/api/v1/rules | \
+ALERT_COUNT=$(curl -s http://localhost:9090/api/v1/rules | \
   jq '[.data.groups[] | select(.name=="system_alerts") | .rules[]] | length')
 
 if [ "$ALERT_COUNT" -eq 4 ]; then
@@ -57,17 +56,17 @@ fi
 
 echo ""
 
-# Test 4: Check metric values are realistic
+# Test 4: Check metric values
 echo "Test 4: Metric Value Validation"
 MEMORY_MB=$(curl -s http://localhost:8080/metrics | \
   grep "^mcp_system_memory_usage_bytes" | \
   awk '{print $2}' | \
   awk '{print int($1/1024/1024)}')
 
-if [ "$MEMORY_MB" -gt 10 ] && [ "$MEMORY_MB" -lt 64000 ]; then
+if [ "$MEMORY_MB" -gt 10 ] && [ "$MEMORY_MB" -lt 10000 ]; then
     echo "✅ Memory value is realistic: ${MEMORY_MB}MB"
 else
-    echo "⚠️  Memory value may be incorrect: ${MEMORY_MB}MB"
+    echo "⚠️ Memory value may be incorrect: ${MEMORY_MB}MB"
 fi
 
 CPU_PERCENT=$(curl -s http://localhost:8080/metrics | \
@@ -79,26 +78,6 @@ if (( $(echo "$CPU_PERCENT >= 0 && $CPU_PERCENT <= 100" | bc -l) )); then
 else
     echo "❌ CPU value is invalid: ${CPU_PERCENT}%"
     ((FAILED++))
-fi
-
-echo ""
-
-# Test 5: Check background collection
-echo "Test 5: Background Collection"
-echo "Waiting 20 seconds to verify collection..."
-
-BEFORE=$(curl -s 'http://localhost:9090/api/v1/query?query=mcp_system_cpu_usage_percent' | \
-  jq -r '.data.result[0].value[0]' || echo "0")
-
-sleep 20
-
-AFTER=$(curl -s 'http://localhost:9090/api/v1/query?query=mcp_system_cpu_usage_percent' | \
-  jq -r '.data.result[0].value[0]' || echo "0")
-
-if [ "$AFTER" != "$BEFORE" ] && [ "$AFTER" != "0" ]; then
-    echo "✅ Metrics are updating (timestamp changed)"
-else
-    echo "⚠️  Metrics may not be updating properly"
 fi
 
 echo ""

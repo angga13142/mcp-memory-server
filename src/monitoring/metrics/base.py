@@ -1,92 +1,54 @@
-"""
-Module: base.py
-
-Description:
-    Base metric abstractions and registry helpers for Prometheus metrics
-    used by the monitoring package. Centralizes metric registration to
-    avoid duplicate collectors and provides a helper to export metrics in
-    Prometheus text format.
-
-Usage:
-    from src.monitoring.metrics import metric_registry, get_metrics
-
-    metrics_bytes = get_metrics()
-    registry_state = metric_registry.collect_all()
-
-Author: GitHub Copilot
-Date: 2026-01-08
-"""
-
-from __future__ import annotations
+"""Base classes for metrics collection."""
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Dict, List
 
-from prometheus_client import REGISTRY, Info, generate_latest
+from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, Summary
 
 
 class MetricCollector(ABC):
     """Base class for metric collectors."""
 
-    @abstractmethod
-    def register(self) -> None:
-        """Register Prometheus metrics for this collector."""
+    def __init__(self):
+        """Initialize the collector."""
+        self.registry = None
 
     @abstractmethod
-    def collect(self) -> dict[str, float]:
-        """Collect metric values for observability endpoints."""
+    def register(self) -> None:
+        """Register metrics with Prometheus."""
+        pass
+
+    def collect(self) -> Dict[str, Any]:
+        """
+        Collect current metrics.
+
+        Returns:
+            Dictionary of collected metrics
+        """
+        return {}
 
 
 class MetricRegistry:
-    """Central registry for all metric collectors."""
+    """Registry for all metric collectors."""
 
-    def __init__(self) -> None:
-        self._collectors: list[MetricCollector] = []
-        self._metrics: dict[str, Any] = {}
+    def __init__(self):
+        """Initialize the registry."""
+        self._collectors: List[MetricCollector] = []
+        self.registry = CollectorRegistry()
 
     def register_collector(self, collector: MetricCollector) -> None:
-        """Register and initialize a metric collector once."""
-        if collector in self._collectors:
-            return
-        self._collectors.append(collector)
+        """Register a metric collector."""
+        collector.registry = self.registry
         collector.register()
+        self._collectors.append(collector)
 
-    def collect_all(self) -> dict[str, dict[str, float]]:
+    def collect_all(self) -> Dict[str, Any]:
         """Collect metrics from all registered collectors."""
-        snapshot: dict[str, dict[str, float]] = {}
+        all_metrics = {}
         for collector in self._collectors:
-            snapshot[collector.__class__.__name__] = collector.collect()
-        return snapshot
-
-    @property
-    def metrics(self) -> dict[str, Any]:
-        """Access raw metric objects keyed by name."""
-        return self._metrics
-
-
-def get_metrics() -> bytes:
-    """Return metrics in Prometheus text format."""
-    return generate_latest(REGISTRY)
-
-
-# Application metadata exposed as Prometheus Info
-app_info = Info("mcp_memory_server", "Application information")
-app_info.info(
-    {
-        "version": "1.0.0",
-        "feature": "daily_journal",
-        "python_version": "3.11",
-    }
-)
+            all_metrics.update(collector.collect())
+        return all_metrics
 
 
 # Global registry instance
 metric_registry = MetricRegistry()
-
-__all__ = [
-    "MetricCollector",
-    "MetricRegistry",
-    "metric_registry",
-    "get_metrics",
-    "app_info",
-]

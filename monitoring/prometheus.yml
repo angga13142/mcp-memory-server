@@ -1,37 +1,93 @@
+# Prometheus Configuration for MCP Memory Server
+
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
-    cluster: "mcp-memory-server"
-    environment: "production"
+    cluster: 'mcp-memory-server'
+    environment: 'production'
 
+# Alertmanager configuration
 alerting:
   alertmanagers:
-    - static_configs:
+    - static_configs: 
         - targets:
-            - alertmanager:9093
+            - 'alertmanager:9093'
 
+# Load rules
 rule_files:
   - '/etc/prometheus/alerts/journal_alerts.yml'
   - '/etc/prometheus/alerts/system_alerts.yml'
 
+# Scrape configurations
 scrape_configs:
-  - job_name: "mcp-memory-server"
+  # MCP Memory Server application
+  - job_name: 'mcp-memory-server'
     static_configs:
-      - targets: ["mcp-memory-server:8080"]
-    metrics_path: "/metrics"
+      - targets: 
+          - 'mcp-memory-server:8080'
+        labels:
+          app: 'mcp-memory-server'
+          component: 'application'
+    metrics_path: '/metrics'
     scrape_interval: 10s
     scrape_timeout: 5s
 
-  - job_name: "redis"
+  # Prometheus itself
+  - job_name: 'prometheus'
     static_configs:
-      - targets: ["redis:6379"]
-    metrics_path: "/metrics"
+      - targets: 
+          - 'localhost:9090'
+        labels: 
+          app: 'prometheus'
+          component: 'monitoring'
 
-  - job_name: "node"
+  # Node Exporter (system metrics)
+  - job_name: 'node-exporter'
     static_configs:
-      - targets: ["node-exporter:9100"]
+      - targets:
+          - 'node-exporter:9100'
+        labels:
+          app: 'node-exporter'
+          component: 'system'
 
-  - job_name: "cadvisor"
+  # cAdvisor (container metrics)
+  - job_name: 'cadvisor'
     static_configs:
-      - targets: ["cadvisor:8080"]
+      - targets:
+          - 'cadvisor:8080'
+        labels:
+          app: 'cadvisor'
+          component: 'containers'
+
+  # Redis Exporter
+  - job_name: 'redis'
+    static_configs:
+      - targets:
+          - 'redis-exporter:9121'
+        labels:
+          app: 'redis'
+          component: 'database'
+
+  # Grafana
+  - job_name: 'grafana'
+    static_configs:
+      - targets:
+          - 'grafana:3000'
+        labels:
+          app: 'grafana'
+          component: 'visualization'
+
+# Storage configuration
+storage:
+  tsdb:
+    path: /prometheus
+    retention.time: 30d
+    retention.size: 50GB
+
+# Remote write (optional - for long-term storage)
+# remote_write:
+#   - url: "http://remote-storage:9201/write"
+#     queue_config:
+#       capacity: 10000
+#       max_shards: 5

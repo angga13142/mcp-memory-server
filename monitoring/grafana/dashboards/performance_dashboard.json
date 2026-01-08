@@ -1,0 +1,185 @@
+{
+    "dashboard": {
+        "title": "Performance Dashboard",
+        "uid": "performance-dashboard",
+        "tags": [
+            "mcp",
+            "performance"
+        ],
+        "timezone": "browser",
+        "schemaVersion": 38,
+        "version": 1,
+        "refresh": "30s",
+        "panels": [
+            {
+                "id": 1,
+                "title": "Database Query Duration (P95)",
+                "type": "timeseries",
+                "targets": [
+                    {
+                        "expr": "histogram_quantile(0.95, rate(mcp_db_query_duration_seconds_bucket[5m]))",
+                        "legendFormat": "{{operation}}",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 0
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "s",
+                        "thresholds": {
+                            "mode": "absolute",
+                            "steps": [
+                                {
+                                    "value": 0,
+                                    "color": "green"
+                                },
+                                {
+                                    "value": 0.5,
+                                    "color": "yellow"
+                                },
+                                {
+                                    "value": 1,
+                                    "color": "red"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                "id": 2,
+                "title": "Vector Embedding Time (P95)",
+                "type": "timeseries",
+                "targets": [
+                    {
+                        "expr": "histogram_quantile(0.95, rate(mcp_vector_embedding_seconds_bucket[5m]))",
+                        "legendFormat": "P95 Embedding Time",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 0
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "s"
+                    }
+                }
+            },
+            {
+                "id": 3,
+                "title": "Active Database Connections",
+                "type": "timeseries",
+                "targets": [
+                    {
+                        "expr": "mcp_db_connections_active",
+                        "legendFormat": "Active Connections",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 8
+                }
+            },
+            {
+                "id": 4,
+                "title": "Vector Store Memory Count",
+                "type": "timeseries",
+                "targets": [
+                    {
+                        "expr": "mcp_vector_memory_count",
+                        "legendFormat": "Memory Count",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 8
+                }
+            },
+            {
+                "id": 5,
+                "title": "CPU Usage",
+                "type": "timeseries",
+                "targets": [
+                    {
+                        "expr": "mcp_system_cpu_usage_percent",
+                        "legendFormat": "CPU %",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 8,
+                    "x": 0,
+                    "y": 16
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "percent",
+                        "max": 100
+                    }
+                }
+            },
+            {
+                "id": 6,
+                "title": "Memory Usage",
+                "type": "timeseries",
+                "targets": [
+                    {
+                        "expr": "mcp_system_memory_usage_bytes / (1024*1024*1024)",
+                        "legendFormat": "Memory GB",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 8,
+                    "x": 8,
+                    "y": 16
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "decgbytes"
+                    }
+                }
+            },
+            {
+                "id": 7,
+                "title": "Disk Usage",
+                "type": "timeseries",
+                "targets": [
+                    {
+                        "expr": "mcp_system_disk_usage_bytes{mountpoint='/'} / (1024*1024*1024)",
+                        "legendFormat": "Disk GB",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 8,
+                    "x": 16,
+                    "y": 16
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "decgbytes"
+                    }
+                }
+            }
+        ]
+    }
+}

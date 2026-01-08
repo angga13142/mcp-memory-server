@@ -1,6 +1,9 @@
 """Unit tests for system metrics."""
 
-from unittest.mock import Mock, patch
+import asyncio
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 from src.monitoring.metrics.system_metrics import SystemMetrics, system_metrics
 
@@ -10,61 +13,8 @@ class TestSystemMetrics:
 
     def setup_method(self):
         """Setup for each test."""
-        from prometheus_client import REGISTRY
-
-        # Force unregister any existing system metrics to avoid duplicates
-        params = [
-            "mcp_system_memory_usage_bytes",
-            "mcp_system_cpu_usage_percent",
-            "mcp_system_disk_usage_bytes",
-            "mcp_system_network_bytes_sent_total",
-            "mcp_system_network_bytes_received_total",
-        ]
-
-        for _name in params:
-            # This is a bit hacky as we need to find the collector by name
-            # But simpler is just to try unregistering if we had the object
-            # Since we don't have the object that registered it (e.g. global instance),
-            # We might need to iterate registry.
-            pass
-
-        # Better approach: cleanup specific names if possible, but REGISTRY.unregister takes a COLLECTOR object.
-        # We can simulate unregistering by name by finding it in REGISTRY._collector_to_names
-
-        # Simpler fix: Do not use real Gauge in unit test if possible, OR
-        # Just use the global system_metrics instance which is invalid if we want isolation.
-
-        # Let's try to unregister by name match
-        collectors_to_remove = []
-        for collector in REGISTRY._collector_to_names:
-            names = REGISTRY._collector_to_names[collector]
-            for name in names:
-                if name.startswith("mcp_system_"):
-                    collectors_to_remove.append(collector)
-
-        for collector in set(collectors_to_remove):
-            REGISTRY.unregister(collector)
-
         self.metrics = SystemMetrics()
         self.metrics.register()
-
-    def teardown_method(self):
-        """Clean up after each test."""
-        from prometheus_client import REGISTRY
-
-        try:
-            if self.metrics.memory_usage:
-                REGISTRY.unregister(self.metrics.memory_usage)
-            if self.metrics.cpu_usage:
-                REGISTRY.unregister(self.metrics.cpu_usage)
-            if self.metrics.disk_usage:
-                REGISTRY.unregister(self.metrics.disk_usage)
-            if self.metrics.network_bytes_sent:
-                REGISTRY.unregister(self.metrics.network_bytes_sent)
-            if self.metrics.network_bytes_recv:
-                REGISTRY.unregister(self.metrics.network_bytes_recv)
-        except KeyError:
-            pass
 
     def test_register_creates_metrics(self):
         """Test that register creates all metrics."""
@@ -105,8 +55,8 @@ class TestSystemMetrics:
     def test_collect_disk(self, mock_disk):
         """Test disk collection."""
         mock_disk.return_value = Mock(
-            total=100 * 1024 * 1024 * 1024,  # 100GB
-            used=50 * 1024 * 1024 * 1024,  # 50GB
+            total=100 * 1024 * 1024 * 1024,
+            used=50 * 1024 * 1024 * 1024,
             free=50 * 1024 * 1024 * 1024,
             percent=50.0,
         )
@@ -122,7 +72,7 @@ class TestSystemMetrics:
         # First call
         mock_net.return_value = Mock(bytes_sent=1000, bytes_recv=2000)
 
-        self.metrics.collect()
+        metrics1 = self.metrics.collect()
 
         # Second call (incremental)
         mock_net.return_value = Mock(bytes_sent=1500, bytes_recv=2500)
@@ -144,17 +94,12 @@ class TestSystemMetrics:
 
     def test_get_cpu_info(self):
         """Test get_cpu_info helper."""
-        # Use patch to avoid blocking
-        with patch(
-            "src.monitoring.metrics.system_metrics.psutil.cpu_percent",
-            return_value=10.0,
-        ):
-            info = self.metrics.get_cpu_info()
+        info = self.metrics.get_cpu_info()
 
-            assert "percent" in info
-            assert "count" in info
-            assert "load_avg_1m" in info
-            assert info["count"] > 0
+        assert "percent" in info
+        assert "count" in info
+        assert "load_avg_1m" in info
+        assert info["count"] > 0
 
     def test_get_disk_info(self):
         """Test get_disk_info helper."""

@@ -1,111 +1,131 @@
 #!/bin/bash
-# Application data restore (SQLite + ChromaDB + configs)
+#
+# Restore Application from Backup
+#
 
-set -euo pipefail
+set -e
 
-BACKUP_DIR="/var/backups/mcp-monitoring/application"
-LOG_FILE="/var/backups/mcp-monitoring/logs/application_restore.log"
-APP_DATA_DIR="/var/mcp-data"
-COMPOSE_FILE="docker-compose.yml"
-APP_SERVICE="mcp-memory-server"
-APP_USER="1000:1000"
+# Configuration
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/mcp-monitoring/application}"
+APP_DATA_DIR="${APP_DATA_DIR:-/var/lib/mcp-memory-server}"
+DB_PATH="${DB_PATH:-${APP_DATA_DIR}/memory.db}"
+CHROMA_PATH="${CHROMA_PATH:-${APP_DATA_DIR}/chroma_db}"
+BACKUP_FILE="${1:-latest}"
 
-mkdir -p "$(dirname "$LOG_FILE")" "$APP_DATA_DIR"
+# Logging
+LOG_FILE="/var/log/mcp-backups/application-restore.log"
+mkdir -p "$(dirname "$LOG_FILE")"
 
-log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"; }
-fail() { log "❌ ERROR: $1"; exit 1; }
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+}
 
-[ "$EUID" -eq 0 ] || fail "Run as root"
-[ $# -ge 1 ] || fail "Usage: $0 <backup.tar.gz> | latest"
-BACKUP_FILE="$1"
+error() {
+    log "ERROR: $*"
+    exit 1
+}
+
+log "Starting application restore..."
+
+# Determine backup file
 if [ "$BACKUP_FILE" = "latest" ]; then
-  BACKUP_FILE=$(find "$BACKUP_DIR" -name "app_*.tar.gz" -type f -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2)
-  [ -n "$BACKUP_FILE" ] || fail "No backups found"
-  log "Using latest: $(basename "$BACKUP_FILE")"
-fi
-[ -f "$BACKUP_FILE" ] || fail "Backup not found: $BACKUP_FILE"
-
-if [ -f "${BACKUP_FILE}.sha256" ]; then
-  EXPECTED=$(cat "${BACKUP_FILE}.sha256")
-  ACTUAL=$(sha256sum "$BACKUP_FILE" | cut -d' ' -f1)
-  [ "$EXPECTED" = "$ACTUAL" ] || fail "Checksum mismatch"
-  log "✅ Checksum verified"
+    BACKUP_FILE="${BACKUP_DIR}/latest.tar.gz"
+elif [ ! -f "$BACKUP_FILE" ]; then
+    BACKUP_FILE="${BACKUP_DIR}/${BACKUP_FILE}"
 fi
 
-tar -tzf "$BACKUP_FILE" >/dev/null || fail "Archive corrupt"
-
-TMPDIR=$(mktemp -d)
-tar -xzf "$BACKUP_FILE" -C "$TMPDIR"
-EXTRACT_DIR=$(find "$TMPDIR" -mindepth 1 -maxdepth 1 -type d | head -1)
-[ -n "$EXTRACT_DIR" ] || { rm -rf "$TMPDIR"; fail "No extracted directory"; }
-
-if docker ps --format '{{.Names}}' | grep -q "^${APP_SERVICE}$"; then
-  docker-compose -f "$COMPOSE_FILE" stop "$APP_SERVICE"
-  sleep 5
+if [ ! -f "$BACKUP_FILE" ]; then
+    error "Backup file not found: $BACKUP_FILE"
 fi
 
-log "Backing up current state"
-TS=$(date +%Y%m%d_%H%M%S)
-[ -f "$APP_DATA_DIR/memory.db" ] && cp "$APP_DATA_DIR/memory.db" "$APP_DATA_DIR/memory.db.pre-restore_${TS}" || true
-[ -d "$APP_DATA_DIR/chroma_db" ] && mv "$APP_DATA_DIR/chroma_db" "$APP_DATA_DIR/chroma_db.pre-restore_${TS}" || true
+log "Using backup: $BACKUP_FILE"
 
-log "Restoring SQLite"
-if [ -f "$EXTRACT_DIR/memory.db.gz" ]; then
-  gunzip -c "$EXTRACT_DIR/memory.db.gz" > "$APP_DATA_DIR/memory.db"
+# Verify checksum
+CHECKSUM_FILE="${BACKUP_FILE}.sha256"
+if [ -f "$CHECKSUM_FILE" ]; then
+    log "Verifying checksum..."
+    cd "$(dirname "$BACKUP_FILE")"
+    if ! sha256sum -c "$(basename "$CHECKSUM_FILE")"; then
+        error "Checksum verification failed"
+    fi
+    log "Checksum verified"
+fi
+
+# Stop application
+log "Stopping application..."
+docker-compose stop mcp-memory-server || true
+sleep 5
+
+# Backup current data
+log "Backing up current application data..."
+if [ -d "$APP_DATA_DIR" ]; then
+    CURRENT_BACKUP="${APP_DATA_DIR}_backup_$(date +%Y%m%d_%H%M%S)"
+    mv "$APP_DATA_DIR" "$CURRENT_BACKUP"
+    log "Current data backed up to: $CURRENT_BACKUP"
+fi
+
+# Extract backup
+log "Extracting backup..."
+TEMP_DIR=$(mktemp -d)
+tar -xzf "$BACKUP_FILE" -C "$TEMP_DIR"
+
+# Find backup directory
+BACKUP_EXTRACT_DIR=$(find "$TEMP_DIR" -type d -name "app_*" | head -1)
+
+if [ -z "$BACKUP_EXTRACT_DIR" ]; then
+    error "Backup directory not found"
+fi
+
+# Restore database
+log "Restoring database..."
+mkdir -p "$(dirname "$DB_PATH")"
+if [ -f "${BACKUP_EXTRACT_DIR}/memory.db" ]; then
+    cp "${BACKUP_EXTRACT_DIR}/memory.db" "$DB_PATH"
+    
+    # Verify integrity
+    if sqlite3 "$DB_PATH" "PRAGMA integrity_check;" | grep -q "ok"; then
+        log "✅ Database integrity verified"
+    else
+        error "Database integrity check failed"
+    fi
 else
-  rm -rf "$TMPDIR"; fail "Database file missing"
+    log "WARNING: Database not found in backup"
 fi
 
-if sqlite3 "$APP_DATA_DIR/memory.db" "PRAGMA integrity_check;" | grep -q "ok"; then
-  log "✅ DB integrity ok"
+# Restore ChromaDB
+log "Restoring ChromaDB..."
+if [ -d "${BACKUP_EXTRACT_DIR}/chroma_db" ]; then
+    cp -r "${BACKUP_EXTRACT_DIR}/chroma_db" "$CHROMA_PATH"
+    log "ChromaDB restored"
 else
-  rm -rf "$TMPDIR"; fail "DB integrity check failed"
+    log "WARNING: ChromaDB not found in backup"
 fi
 
-log "Restoring ChromaDB"
-if [ -d "$EXTRACT_DIR/chroma_db" ]; then
-  cp -r "$EXTRACT_DIR/chroma_db" "$APP_DATA_DIR/"
-else
-  log "⚠️  ChromaDB not found in backup"
+# Restore configuration
+if [ -f "${BACKUP_EXTRACT_DIR}/config.yaml" ]; then
+    cp "${BACKUP_EXTRACT_DIR}/config.yaml" "${APP_DATA_DIR}/config.yaml"
 fi
 
-log "Restoring configs"
-[ -f "$EXTRACT_DIR/config.yaml" ] && cp "$EXTRACT_DIR/config.yaml" "$APP_DATA_DIR/config.yaml"
-[ -f "$EXTRACT_DIR/config.prod.yaml" ] && cp "$EXTRACT_DIR/config.prod.yaml" "$APP_DATA_DIR/config.prod.yaml"
+# Set permissions
+log "Setting permissions..."
+chown -R 1000:1000 "$APP_DATA_DIR"
 
-chown -R "$APP_USER" "$APP_DATA_DIR"
-chmod -R 755 "$APP_DATA_DIR"
+# Cleanup
+rm -rf "$TEMP_DIR"
 
-rm -rf "$TMPDIR"
+# Start application
+log "Starting application..."
+docker-compose start mcp-memory-server
 
-docker-compose -f "$COMPOSE_FILE" start "$APP_SERVICE"
-
-log "Waiting for app health"
-for i in $(seq 1 12); do
-  if curl -sf http://localhost:8080/health >/dev/null 2>&1; then
-    log "✅ App healthy"
-    break
-  fi
-  log "...waiting ($i/12)"
-  sleep 5
+# Wait for application to be ready
+log "Waiting for application..."
+for i in {1..30}; do
+    if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
+        log "✅ Application is healthy"
+        break
+    fi
+    sleep 2
 done
 
-if ! curl -sf http://localhost:8080/health >/dev/null 2>&1; then
-  fail "App failed health check"
-fi
-
-TABLE_COUNT=$(docker exec "$APP_SERVICE" sqlite3 /app/data/memory.db "SELECT COUNT(*) FROM sqlite_master WHERE type='table';" 2>/dev/null || echo 0)
-log "Tables present: $TABLE_COUNT"
-
-log "================================================"
-log "✅ APPLICATION RESTORE COMPLETE"
-log "Backup: $(basename "$BACKUP_FILE")"
-log "================================================"
-
-if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
-  curl -X POST "$SLACK_WEBHOOK_URL" \
-    -H 'Content-Type: application/json' \
-    -d "{\"text\":\"✅ Application restored from $(basename "$BACKUP_FILE")\"}" >/dev/null 2>&1 || true
-fi
-
+log "Restore completed successfully"
 exit 0
