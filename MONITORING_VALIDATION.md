@@ -20,16 +20,19 @@ chmod +x scripts/validation/run_monitoring_validation.sh
 ### 1. Metrics Endpoint
 
 **Check metrics are exposed:**
+
 ```bash
 curl http://localhost:8080/metrics
 ```
 
 **Expected output:**
+
 - Prometheus format text
 - Multiple `mcp_*` metrics
 - HTTP 200 status
 
 **Verify key metrics present:**
+
 ```bash
 curl -s http://localhost:8080/metrics | grep -E "mcp_journal_sessions|mcp_db_queries|mcp_vector"
 ```
@@ -37,16 +40,19 @@ curl -s http://localhost:8080/metrics | grep -E "mcp_journal_sessions|mcp_db_que
 ### 2. Prometheus Scraping
 
 **Access Prometheus UI:**
+
 ```bash
 open http://localhost:9090
 ```
 
 **Check targets (Status → Targets):**
+
 - ✅ mcp-memory-server: UP
 - ✅ redis: UP (if enabled)
 - ✅ node-exporter: UP (if monitoring stack enabled)
 
 **Run test queries:**
+
 ```promql
 # Check active sessions
 mcp_journal_sessions_active
@@ -61,12 +67,14 @@ histogram_quantile(0.95, rate(mcp_journal_session_duration_minutes_bucket[5m]))
 ### 3. Grafana Dashboards
 
 **Access Grafana:**
+
 ```bash
 open http://localhost:3000
 # Login: admin / admin
 ```
 
 **Verify dashboard:**
+
 1. Navigate to Dashboards
 2. Find "MCP Memory Server - Daily Journal"
 3. Check all panels load
@@ -74,11 +82,13 @@ open http://localhost:3000
 5. Test auto-refresh (5s interval)
 
 **Generate test data:**
+
 ```bash
 python3 scripts/validation/generate_test_data.py
 ```
 
 **Wait 30 seconds and verify:**
+
 - Session counters updated
 - Graphs show activity
 - No "No Data" panels
@@ -86,6 +96,7 @@ python3 scripts/validation/generate_test_data.py
 ### 4. Alert Rules
 
 **Check alerts loaded (Prometheus → Alerts):**
+
 - HighSessionFailureRate
 - ReflectionGenerationFailing
 - SlowReflectionGeneration
@@ -96,10 +107,12 @@ python3 scripts/validation/generate_test_data.py
 - ServiceDown
 
 **All should show:**
+
 - State: Inactive (green)
 - No syntax errors
 
 **Test alert (optional):**
+
 ```python
 # Start many sessions to trigger alert
 for i in range(12):
@@ -111,11 +124,13 @@ Wait 15 minutes and check if `TooManyActiveSessions` fires.
 ### 5. Structured Logging
 
 **Check log format:**
+
 ```bash
 docker-compose logs memory-server | tail -20
 ```
 
 **Should see JSON logs with:**
+
 - `@timestamp`
 - `level`
 - `logger`
@@ -123,6 +138,7 @@ docker-compose logs memory-server | tail -20
 - `module`
 
 **Validate JSON:**
+
 ```bash
 docker-compose logs memory-server | grep -o '{.*}' | head -1 | jq .
 ```
@@ -132,16 +148,19 @@ Should parse without errors.
 ### 6. Alertmanager (Optional)
 
 **Access UI:**
+
 ```bash
 open http://localhost:9093
 ```
 
 **Verify:**
+
 - UI loads
 - No errors
 - Silence functionality works
 
 **Test Slack integration:**
+
 ```bash
 # Set webhook in .env
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
@@ -161,6 +180,7 @@ python3 scripts/validation/validate_session_metrics.py
 ```
 
 **Verifies:**
+
 - Metrics endpoint accessible
 - Session counters increment
 - All session metrics present
@@ -172,6 +192,7 @@ python3 scripts/validation/generate_test_data.py
 ```
 
 **Creates:**
+
 - 5 work sessions
 - Learnings and challenges
 - Wins
@@ -184,6 +205,7 @@ python3 scripts/validation/e2e_monitoring_test.py
 ```
 
 **Tests:**
+
 - Full workflow from session to metrics
 - Prometheus data collection
 - Metric propagation
@@ -193,6 +215,7 @@ python3 scripts/validation/e2e_monitoring_test.py
 ### Metrics Overhead
 
 **Measure impact:**
+
 ```bash
 # Run with metrics
 time python3 -c "
@@ -203,6 +226,7 @@ asyncio.run(generate_test_data())
 ```
 
 **Expected:**
+
 - Overhead < 10%
 - Memory increase < 50MB
 - No noticeable latency
@@ -215,6 +239,7 @@ curl -s http://localhost:9090/api/v1/label/__name__/values | jq '.data | length'
 ```
 
 **Expected:**
+
 - Total metrics < 1000
 - No high-cardinality labels
 
@@ -223,6 +248,7 @@ curl -s http://localhost:9090/api/v1/label/__name__/values | jq '.data | length'
 ### Metrics Not Showing
 
 **Debug steps:**
+
 1. Check endpoint: `curl http://localhost:8080/metrics`
 2. Check Prometheus logs: `docker-compose logs prometheus`
 3. Verify network: `docker network inspect mcp-network`
@@ -231,6 +257,7 @@ curl -s http://localhost:9090/api/v1/label/__name__/values | jq '.data | length'
 ### Dashboard Empty
 
 **Debug steps:**
+
 1. Verify Prometheus has data:
    ```bash
    curl "http://localhost:9090/api/v1/query?query=up"
@@ -242,6 +269,7 @@ curl -s http://localhost:9090/api/v1/label/__name__/values | jq '.data | length'
 ### Alerts Not Firing
 
 **Debug steps:**
+
 1. Check rule syntax:
    ```bash
    docker-compose exec prometheus promtool check rules /etc/prometheus/alerts/*.yml
@@ -255,6 +283,7 @@ curl -s http://localhost:9090/api/v1/label/__name__/values | jq '.data | length'
 ### Logs Not JSON
 
 **Debug steps:**
+
 1. Check environment variable:
    ```bash
    docker-compose exec memory-server env | grep LOG_FORMAT
