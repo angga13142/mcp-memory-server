@@ -1,9 +1,9 @@
 """Simple in-memory rate limiter for monitoring endpoints."""
+
 from __future__ import annotations
 
 import time
 from collections import defaultdict
-from typing import DefaultDict, Dict, List, Tuple
 
 
 class RateLimiter:
@@ -12,9 +12,9 @@ class RateLimiter:
     def __init__(self, max_requests: int = 100, window_seconds: int = 60) -> None:
         self.max_requests = max_requests
         self.window_seconds = window_seconds
-        self._requests: DefaultDict[str, List[float]] = defaultdict(list)
+        self._requests: defaultdict[str, list[float]] = defaultdict(list)
 
-    def is_allowed(self, client_id: str) -> Tuple[bool, int]:
+    def is_allowed(self, client_id: str) -> tuple[bool, int]:
         """Check if a request is allowed and return remaining quota."""
         now = time.time()
         cutoff = now - self.window_seconds

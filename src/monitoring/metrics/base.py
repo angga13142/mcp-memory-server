@@ -16,12 +16,13 @@ Usage:
 Author: GitHub Copilot
 Date: 2026-01-08
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any
 
-from prometheus_client import Info, REGISTRY, generate_latest
+from prometheus_client import REGISTRY, Info, generate_latest
 
 
 class MetricCollector(ABC):
@@ -32,7 +33,7 @@ class MetricCollector(ABC):
         """Register Prometheus metrics for this collector."""
 
     @abstractmethod
-    def collect(self) -> Dict[str, float]:
+    def collect(self) -> dict[str, float]:
         """Collect metric values for observability endpoints."""
 
 
@@ -40,8 +41,8 @@ class MetricRegistry:
     """Central registry for all metric collectors."""
 
     def __init__(self) -> None:
-        self._collectors: List[MetricCollector] = []
-        self._metrics: Dict[str, Any] = {}
+        self._collectors: list[MetricCollector] = []
+        self._metrics: dict[str, Any] = {}
 
     def register_collector(self, collector: MetricCollector) -> None:
         """Register and initialize a metric collector once."""
@@ -50,15 +51,15 @@ class MetricRegistry:
         self._collectors.append(collector)
         collector.register()
 
-    def collect_all(self) -> Dict[str, Dict[str, float]]:
+    def collect_all(self) -> dict[str, dict[str, float]]:
         """Collect metrics from all registered collectors."""
-        snapshot: Dict[str, Dict[str, float]] = {}
+        snapshot: dict[str, dict[str, float]] = {}
         for collector in self._collectors:
             snapshot[collector.__class__.__name__] = collector.collect()
         return snapshot
 
     @property
-    def metrics(self) -> Dict[str, Any]:
+    def metrics(self) -> dict[str, Any]:
         """Access raw metric objects keyed by name."""
         return self._metrics
 
@@ -70,11 +71,13 @@ def get_metrics() -> bytes:
 
 # Application metadata exposed as Prometheus Info
 app_info = Info("mcp_memory_server", "Application information")
-app_info.info({
-    "version": "1.0.0",
-    "feature": "daily_journal",
-    "python_version": "3.11",
-})
+app_info.info(
+    {
+        "version": "1.0.0",
+        "feature": "daily_journal",
+        "python_version": "3.11",
+    }
+)
 
 
 # Global registry instance

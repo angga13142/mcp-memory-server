@@ -19,9 +19,8 @@ Metrics Exposed:
 Author: GitHub Copilot
 Date: 2026-01-08
 """
-from __future__ import annotations
 
-from typing import Dict
+from __future__ import annotations
 
 from prometheus_client import Counter, Gauge, Histogram
 
@@ -63,10 +62,12 @@ class DatabaseMetrics(MetricCollector):
             ["operation", "status"],
         )
 
-    def collect(self) -> Dict[str, float]:
+    def collect(self) -> dict[str, float]:
         """Collect database metrics."""
         return {
-            "connections_active": self._require(self.connections_active, "connections_active")._value.get(),
+            "connections_active": self._require(
+                self.connections_active, "connections_active"
+            )._value.get(),
         }
 
     def set_active_connections(self, value: int) -> None:
@@ -77,14 +78,20 @@ class DatabaseMetrics(MetricCollector):
 
     def increment_connection(self, status: str) -> None:
         """Increment total connections by status."""
-        self._require(self.connections_total, "connections_total").labels(status=status).inc()
+        self._require(self.connections_total, "connections_total").labels(
+            status=status
+        ).inc()
 
     def observe_query(self, operation: str, duration: float, status: str) -> None:
         """Record query duration and status."""
         if duration < 0:
             raise ValueError("Duration cannot be negative")
-        self._require(self.query_duration, "query_duration").labels(operation=operation).observe(duration)
-        self._require(self.queries_total, "queries_total").labels(operation=operation, status=status).inc()
+        self._require(self.query_duration, "query_duration").labels(
+            operation=operation
+        ).observe(duration)
+        self._require(self.queries_total, "queries_total").labels(
+            operation=operation, status=status
+        ).inc()
 
     def _require(self, metric, name: str):
         """Ensure metric is registered before use."""

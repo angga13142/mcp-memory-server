@@ -1,16 +1,17 @@
 """Utility helpers for monitoring responses and formatting."""
+
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 def success_response(
     data: Any = None,
     message: str = "Operation completed successfully",
     **extra: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create a standardized success response payload."""
-    response: Dict[str, Any] = {
+    response: dict[str, Any] = {
         "success": True,
         "message": message,
         "error": None,
@@ -23,12 +24,12 @@ def success_response(
 
 def error_response(
     error: str,
-    error_type: Optional[str] = None,
-    tip: Optional[str] = None,
+    error_type: str | None = None,
+    tip: str | None = None,
     **extra: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create a standardized error response payload."""
-    response: Dict[str, Any] = {
+    response: dict[str, Any] = {
         "success": False,
         "error": error,
         "message": None,

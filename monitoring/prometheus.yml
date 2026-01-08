@@ -12,7 +12,8 @@ alerting:
             - alertmanager:9093
 
 rule_files:
-  - "alerts/*.yml"
+  - '/etc/prometheus/alerts/journal_alerts.yml'
+  - '/etc/prometheus/alerts/system_alerts.yml'
 
 scrape_configs:
   - job_name: "mcp-memory-server"

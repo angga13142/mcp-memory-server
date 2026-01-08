@@ -1,4 +1,5 @@
 """Logging utilities for structured logging and context propagation."""
+
 from .context import (
     LogContext,
     clear_context,
@@ -11,8 +12,8 @@ from .context import (
     set_user_id,
 )
 from .formatters import ColoredFormatter, StructuredFormatter
-from .optimized_formatters import BufferedJsonHandler, LazyJsonFormatter
 from .helpers import log_error, log_event, log_reflection_event, log_session_event
+from .optimized_formatters import BufferedJsonHandler, LazyJsonFormatter
 
 __all__ = [
     "StructuredFormatter",

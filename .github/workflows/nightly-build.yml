@@ -1,0 +1,125 @@
+name: Nightly Build
+
+on: 
+  schedule:
+    # Run at 2 AM UTC every day
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs: 
+  extended-tests:
+    name: Extended Test Suite
+    runs-on: ubuntu-latest
+    
+    steps: 
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version:  '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-timeout requests psutil
+          pip install -r requirements.txt
+      
+      - name: Run all tests (including slow tests)
+        run: |
+          pytest tests/ \
+            -v \
+            --tb=short \
+            --timeout=1800 \
+            --durations=20
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with: 
+          name: nightly-test-results
+          path: pytest-report.xml
+
+  performance-benchmark:
+    name: Performance Benchmark
+    runs-on: ubuntu-latest
+    
+    steps: 
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name:  Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest-benchmark
+      
+      - name: Run performance benchmarks
+        run: |
+          pytest tests/load/ \
+            --benchmark-only \
+            --benchmark-json=benchmark. json
+      
+      - name: Store benchmark results
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'pytest'
+          output-file-path: benchmark.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps: 
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name:  Run comprehensive security scan
+        run: |
+          pip install safety bandit
+          
+          # Check dependencies
+          safety check --json --output safety-report.json || true
+          
+          # Scan code
+          bandit -r src/ -f json -o bandit-report.json
+      
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: |
+            safety-report.json
+            bandit-report.json
+
+  notification:
+    name: Send Notification
+    runs-on: ubuntu-latest
+    needs: [extended-tests, performance-benchmark, security-audit]
+    if: always()
+    
+    steps:
+      - name: Send Slack notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              text: "Nightly Build Complete",
+              attachments: [{
+                color: '${{ needs.extended-tests.result == "success" && needs.performance-benchmark.result == "success" && needs.security-audit.result == "success" && "good" || "danger" }}',
+                fields: [
+                  { title: "Extended Tests", value: "${{ needs.extended-tests.result }}", short: true },
+                  { title: "Performance", value: "${{ needs.performance-benchmark.result }}", short: true },
+                  { title: "Security", value: "${{ needs. security-audit.result }}", short: true }
+                ]
+              }]
+            }
+          webhook_url: ${{ secrets. SLACK_WEBHOOK }}

@@ -1,0 +1,43 @@
+groups:
+  - name: system_alerts
+    interval: 30s
+    rules:
+      - alert: HighMemoryUsage
+        expr: mcp_system_memory_usage_bytes / (1024 * 1024 * 1024 * 4) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is above 90% (current: {{ $value | humanizePercentage }})"
+          
+      - alert: HighCPUUsage
+        expr: mcp_system_cpu_usage_percent > 80
+        for: 5m
+        labels: 
+          severity: warning
+          component: system
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 80% (current: {{ $value }}%)"
+          
+      - alert: HighDiskUsage
+        expr: mcp_system_disk_usage_bytes / (1024 * 1024 * 1024 * 50) > 0.9
+        for: 10m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High disk usage detected"
+          description: "Disk usage is above 90%"
+          
+      - alert: CriticalMemoryUsage
+        expr: mcp_system_memory_usage_bytes / (1024 * 1024 * 1024 * 4) > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "Critical memory usage"
+          description: "Memory usage is above 95% - immediate action required"

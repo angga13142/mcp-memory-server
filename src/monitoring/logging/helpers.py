@@ -8,10 +8,11 @@ Description:
 Author: GitHub Copilot
 Date: 2026-01-08
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 
 def log_event(
@@ -45,7 +46,9 @@ def log_session_event(event_type: str, session_id: str, **extra: Any) -> None:
     )
 
 
-def log_reflection_event(session_id: str, generation_time: float, status: str, **extra: Any) -> None:
+def log_reflection_event(
+    session_id: str, generation_time: float, status: str, **extra: Any
+) -> None:
     """Log a reflection generation event."""
     logger = logging.getLogger("journal.reflection")
 
@@ -61,7 +64,12 @@ def log_reflection_event(session_id: str, generation_time: float, status: str, *
     )
 
 
-def log_error(logger: logging.Logger, error: Exception, context: Dict[str, Any], message: str = "An error occurred") -> None:
+def log_error(
+    logger: logging.Logger,
+    error: Exception,
+    context: dict[str, Any],
+    message: str = "An error occurred",
+) -> None:
     """Log an error with full context."""
     logger.error(
         message,

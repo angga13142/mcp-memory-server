@@ -1,18 +1,17 @@
 """Pytest fixtures for MCP Memory Server tests."""
 
 import asyncio
-import os
 import tempfile
+from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
-from typing import AsyncGenerator, Generator
 
 import pytest
 import pytest_asyncio
 
-from src.storage.database import Database
-from src.storage.vector_store import VectorMemoryStore
 from src.services.memory_service import MemoryService
 from src.services.search_service import SearchService
+from src.storage.database import Base, Database
+from src.storage.vector_store import VectorMemoryStore
 from src.utils.config import Settings
 
 
@@ -45,12 +44,19 @@ async def database(test_settings: Settings) -> AsyncGenerator[Database, None]:
     """Create a test database instance."""
     db = Database(test_settings)
     await db.init()
+
+    # Force table creation for tests
+    async with db._engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
     yield db
     await db.close()
 
 
 @pytest_asyncio.fixture
-async def vector_store(test_settings: Settings) -> AsyncGenerator[VectorMemoryStore, None]:
+async def vector_store(
+    test_settings: Settings,
+) -> AsyncGenerator[VectorMemoryStore, None]:
     """Create a test vector store instance."""
     store = VectorMemoryStore(test_settings)
     await store.init()

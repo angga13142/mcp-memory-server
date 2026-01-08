@@ -227,10 +227,11 @@ from contextvars import ContextVar
 
 correlation_id_var: ContextVar[str] = ContextVar('correlation_id')
 
-with LogContext(correlation_id="abc-123"):
-    logger.info("Processing request")
-    await process_data()
-    logger.info("Request complete")
+async def request_handler():
+    with LogContext(correlation_id="abc-123"):
+        logger.info("Processing request")
+        await process_data()
+        logger.info("Request complete")
 ```
 
 **Design Decision:** Use contextvars for async-safe context

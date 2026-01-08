@@ -4,6 +4,7 @@ Metrics module exports and registry wiring.
 Importing this module initializes and registers all metric collectors so
 metrics are ready for use throughout the application.
 """
+
 from .base import MetricRegistry, app_info, get_metrics, metric_registry
 from .collectors import (
     BatchMetricCollector,

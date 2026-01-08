@@ -1,11 +1,13 @@
 """
 Error handling utilities for the monitoring module.
 """
+
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable
+from typing import Any
 
 
 class MonitoringError(Exception):
@@ -37,7 +39,9 @@ def handle_metric_error(logger: logging.Logger, default_value: Any = None) -> Ca
     return decorator
 
 
-def handle_metric_error_async(logger: logging.Logger, default_value: Any = None) -> Callable:
+def handle_metric_error_async(
+    logger: logging.Logger, default_value: Any = None
+) -> Callable:
     """Async version of handle_metric_error."""
 
     def decorator(func: Callable) -> Callable:

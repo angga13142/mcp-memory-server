@@ -26,9 +26,8 @@ Metrics Exposed:
 Author: GitHub Copilot
 Date: 2026-01-08
 """
-from __future__ import annotations
 
-from typing import Dict
+from __future__ import annotations
 
 from prometheus_client import Counter, Gauge, Histogram
 
@@ -108,11 +107,13 @@ class JournalMetrics(MetricCollector):
             "Total wins captured",
         )
 
-    def collect(self) -> Dict[str, float]:
+    def collect(self) -> dict[str, float]:
         """Collect current journal metrics for quick inspection."""
         return {
             "sessions_active": self._value(self.sessions_active),
-            "sessions_total_success": self._value(self.sessions_total, status="success"),
+            "sessions_total_success": self._value(
+                self.sessions_total, status="success"
+            ),
             "sessions_total_failed": self._value(self.sessions_total, status="failed"),
         }
 
@@ -134,17 +135,23 @@ class JournalMetrics(MetricCollector):
 
     def increment_reflection(self, status: str) -> None:
         """Increment reflection counter."""
-        self._require(self.reflections_generated, "reflections_generated").labels(status=status).inc()
+        self._require(self.reflections_generated, "reflections_generated").labels(
+            status=status
+        ).inc()
 
     def observe_reflection_generation(self, seconds: float) -> None:
         """Observe reflection generation time in seconds."""
         if seconds < 0:
             raise ValueError("Generation time cannot be negative")
-        self._require(self.reflection_generation_time, "reflection_generation_time").observe(seconds)
+        self._require(
+            self.reflection_generation_time, "reflection_generation_time"
+        ).observe(seconds)
 
     def increment_daily_summary(self, status: str) -> None:
         """Increment daily summary counter."""
-        self._require(self.daily_summaries, "daily_summaries").labels(status=status).inc()
+        self._require(self.daily_summaries, "daily_summaries").labels(
+            status=status
+        ).inc()
 
     def observe_daily_summary_time(self, seconds: float) -> None:
         """Observe daily summary generation time."""
@@ -178,7 +185,9 @@ class JournalMetrics(MetricCollector):
 
     def _value(self, metric, **labels: str) -> float:
         """Helper to safely extract metric values."""
-        metric_obj = self._require(metric, metric.__class__.__name__ if metric else "metric")
+        metric_obj = self._require(
+            metric, metric.__class__.__name__ if metric else "metric"
+        )
         if labels:
             return metric_obj.labels(**labels)._value.get()
         return metric_obj._value.get()

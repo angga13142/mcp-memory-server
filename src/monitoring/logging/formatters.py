@@ -12,12 +12,13 @@ Usage:
 Author: GitHub Copilot
 Date: 2026-01-08
 """
+
 from __future__ import annotations
 
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from .context import get_correlation_id, get_user_id
 
@@ -40,7 +41,7 @@ class StructuredFormatter(logging.Formatter):
 
         return json.dumps(log_data, default=str)
 
-    def _build_base_log(self, record: logging.LogRecord) -> Dict[str, Any]:
+    def _build_base_log(self, record: logging.LogRecord) -> dict[str, Any]:
         return {
             "@timestamp": datetime.utcnow().isoformat() + "Z",
             "level": record.levelname,
@@ -53,8 +54,8 @@ class StructuredFormatter(logging.Formatter):
             "thread_name": record.threadName,
         }
 
-    def _extract_extra_fields(self, record: logging.LogRecord) -> Dict[str, Any]:
-        extra: Dict[str, Any] = {}
+    def _extract_extra_fields(self, record: logging.LogRecord) -> dict[str, Any]:
+        extra: dict[str, Any] = {}
 
         correlation_id = get_correlation_id()
         if correlation_id:
@@ -69,7 +70,7 @@ class StructuredFormatter(logging.Formatter):
 
         return extra
 
-    def _format_exception(self, record: logging.LogRecord) -> Dict[str, Any]:
+    def _format_exception(self, record: logging.LogRecord) -> dict[str, Any]:
         # Extract exception type, message, and stack trace so downstream
         # log processors can index these fields individually.
         return {

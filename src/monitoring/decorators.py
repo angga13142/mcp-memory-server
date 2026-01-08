@@ -1,19 +1,21 @@
 """Common decorators for monitoring instrumentation and resilience."""
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from functools import wraps
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any
 
 from prometheus_client import Counter, Histogram
 
 
 def track_operation(
     counter: Counter,
-    histogram: Optional[Histogram] = None,
-    logger: Optional[logging.Logger] = None,
+    histogram: Histogram | None = None,
+    logger: logging.Logger | None = None,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Track operation outcome and latency using Prometheus metrics."""
 
@@ -60,7 +62,7 @@ def track_operation(
 def track_with_context(
     metric_name: str,
     operation_type: str,
-    logger: Optional[logging.Logger] = None,
+    logger: logging.Logger | None = None,
 ) -> Callable[[Callable[..., Awaitable[Any]]], Callable[..., Awaitable[Any]]]:
     """Wrap an async operation with log context and structured event logging."""
 
@@ -109,7 +111,7 @@ def retry_on_error(
     max_retries: int = 3,
     delay: float = 1.0,
     backoff: float = 2.0,
-    logger: Optional[logging.Logger] = None,
+    logger: logging.Logger | None = None,
 ) -> Callable[[Callable[..., Awaitable[Any]]], Callable[..., Awaitable[Any]]]:
     """Async retry decorator with exponential backoff."""
 
@@ -138,7 +140,9 @@ def retry_on_error(
                     else:
                         if logger:
                             logger.error(
-                                "All %s retries failed for %s", max_retries, func.__name__
+                                "All %s retries failed for %s",
+                                max_retries,
+                                func.__name__,
                             )
             if last_exception:
                 raise last_exception

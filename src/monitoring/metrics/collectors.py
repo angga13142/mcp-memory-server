@@ -17,16 +17,18 @@ Usage:
 Author: GitHub Copilot
 Date: 2026-01-08
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import wraps
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from typing import Any
 
 from src.monitoring.errors import handle_metric_error
 
@@ -86,7 +88,9 @@ def track_db_query(operation: str):
             try:
                 result = await func(*args, **kwargs)
             except Exception:
-                database_metrics.observe_query(operation, time.time() - start_time, "failed")
+                database_metrics.observe_query(
+                    operation, time.time() - start_time, "failed"
+                )
                 raise
 
             duration = time.time() - start_time
@@ -143,7 +147,9 @@ async def update_vector_store_metrics(vector_store: Any) -> None:
         return
 
     if persist_dir.exists():
-        total_size = sum(f.stat().st_size for f in persist_dir.rglob("*") if f.is_file())
+        total_size = sum(
+            f.stat().st_size for f in persist_dir.rglob("*") if f.is_file()
+        )
         vector_store_metrics.set_store_size(total_size)
 
 
@@ -165,21 +171,21 @@ __all__ = [
 class MetricCache:
     """Cache container for metric values with TTL support."""
 
-    values: Dict[str, Any] = field(default_factory=dict)
-    last_updated: Optional[datetime] = None
+    values: dict[str, Any] = field(default_factory=dict)
+    last_updated: datetime | None = None
     ttl_seconds: int = 30
 
     def is_expired(self) -> bool:
         if self.last_updated is None:
             return True
-        age = (datetime.now(timezone.utc) - self.last_updated).total_seconds()
+        age = (datetime.now(UTC) - self.last_updated).total_seconds()
         return age > self.ttl_seconds
 
-    def update(self, values: Dict[str, Any]) -> None:
+    def update(self, values: dict[str, Any]) -> None:
         self.values = values
-        self.last_updated = datetime.now(timezone.utc)
+        self.last_updated = datetime.now(UTC)
 
-    def get(self) -> Dict[str, Any]:
+    def get(self) -> dict[str, Any]:
         return self.values
 
 
@@ -190,7 +196,7 @@ class OptimizedMetricCollector:
         self._cache = MetricCache(ttl_seconds=ttl_seconds)
         self._lock = asyncio.Lock()
 
-    async def collect_with_cache(self) -> Dict[str, Any]:
+    async def collect_with_cache(self) -> dict[str, Any]:
         if not self._cache.is_expired():
             return self._cache.get()
 
@@ -201,7 +207,7 @@ class OptimizedMetricCollector:
             self._cache.update(metrics)
             return metrics
 
-    async def _collect_metrics(self) -> Dict[str, Any]:
+    async def _collect_metrics(self) -> dict[str, Any]:
         raise NotImplementedError
 
 
@@ -210,10 +216,10 @@ class BatchMetricCollector:
 
     def __init__(self, batch_size: int = 100) -> None:
         self.batch_size = batch_size
-        self._batch: List[Dict[str, Any]] = []
+        self._batch: list[dict[str, Any]] = []
         self._lock = asyncio.Lock()
 
-    async def add_to_batch(self, operation: Dict[str, Any]) -> None:
+    async def add_to_batch(self, operation: dict[str, Any]) -> None:
         async with self._lock:
             self._batch.append(operation)
             if len(self._batch) >= self.batch_size:
@@ -226,7 +232,7 @@ class BatchMetricCollector:
         self._batch.clear()
         asyncio.create_task(self._process_batch(batch))
 
-    async def _process_batch(self, batch: List[Dict[str, Any]]) -> None:
+    async def _process_batch(self, batch: list[dict[str, Any]]) -> None:
         raise NotImplementedError
 
 
@@ -234,17 +240,17 @@ class LazyMetricCollector:
     """Collect metrics lazily when marked dirty."""
 
     def __init__(self) -> None:
-        self._metrics: Optional[Dict[str, Any]] = None
+        self._metrics: dict[str, Any] | None = None
         self._dirty = True
 
     def mark_dirty(self) -> None:
         self._dirty = True
 
-    async def get_metrics(self) -> Dict[str, Any]:
+    async def get_metrics(self) -> dict[str, Any]:
         if self._dirty:
             self._metrics = await self._collect()
             self._dirty = False
         return self._metrics or {}
 
-    async def _collect(self) -> Dict[str, Any]:
+    async def _collect(self) -> dict[str, Any]:
         raise NotImplementedError

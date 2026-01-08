@@ -2,12 +2,10 @@
 
 from datetime import datetime
 
-import pytest
-
-from src.models.project import ProjectBrief, TechStack, TechStackItem, SystemPattern, SystemPatterns
-from src.models.decision import Decision, DecisionLog
 from src.models.context import ActiveContext
-from src.models.task import Task, ProgressTracker, MemoryEntry
+from src.models.decision import Decision, DecisionLog
+from src.models.project import ProjectBrief, TechStack, TechStackItem
+from src.models.task import MemoryEntry, ProgressTracker, Task
 
 
 class TestProjectBrief:
@@ -98,7 +96,7 @@ class TestDecisionLog:
             rationale="Test rationale",
         )
         log.add(decision)
-        
+
         retrieved = log.get(decision.id)
         assert retrieved is not None
         assert retrieved.title == "Test"
@@ -106,18 +104,22 @@ class TestDecisionLog:
     def test_filter_by_tag(self):
         """Test filtering by tag."""
         log = DecisionLog()
-        log.add(Decision(
-            title="Tagged",
-            decision="D",
-            rationale="R",
-            tags=["important"],
-        ))
-        log.add(Decision(
-            title="Not Tagged",
-            decision="D",
-            rationale="R",
-        ))
-        
+        log.add(
+            Decision(
+                title="Tagged",
+                decision="D",
+                rationale="R",
+                tags=["important"],
+            )
+        )
+        log.add(
+            Decision(
+                title="Not Tagged",
+                decision="D",
+                rationale="R",
+            )
+        )
+
         filtered = log.filter_by_tag("important")
         assert len(filtered) == 1
         assert filtered[0].title == "Tagged"
@@ -189,7 +191,7 @@ class TestProgressTracker:
         tracker.add(Task(title="Doing", status="doing"))
         tracker.add(Task(title="Next 1", status="next"))
         tracker.add(Task(title="Next 2", status="next"))
-        
+
         grouped = tracker.grouped_by_status()
         assert len(grouped["done"]) == 1
         assert len(grouped["doing"]) == 1

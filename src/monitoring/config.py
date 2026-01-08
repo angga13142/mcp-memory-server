@@ -1,9 +1,9 @@
 """Monitoring configuration dataclasses and helpers."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
 
 import yaml
 
@@ -22,7 +22,7 @@ class MetricsConfig:
 class LoggingConfig:
     level: str = "INFO"
     format: str = "json"
-    file: Optional[Path] = None
+    file: Path | None = None
     max_file_size: int = 50 * 1024 * 1024
     backup_count: int = 7
     structured: bool = True
@@ -43,7 +43,7 @@ class SecurityConfig:
     rate_limit_enabled: bool = True
     max_requests_per_minute: int = 100
     sanitize_logs: bool = True
-    allowed_ips: List[str] = field(default_factory=list)
+    allowed_ips: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -54,7 +54,7 @@ class MonitoringConfig:
     security: SecurityConfig = field(default_factory=SecurityConfig)
 
     @classmethod
-    def from_env(cls) -> "MonitoringConfig":
+    def from_env(cls) -> MonitoringConfig:
         import os
 
         return cls(
@@ -76,7 +76,7 @@ class MonitoringConfig:
         )
 
     @classmethod
-    def from_yaml(cls, path: Path) -> "MonitoringConfig":
+    def from_yaml(cls, path: Path) -> MonitoringConfig:
         with open(path) as f:
             data = yaml.safe_load(f) or {}
         return cls(

@@ -12,23 +12,22 @@ Usage:
 Author: GitHub Copilot
 Date: 2026-01-08
 """
+
 from __future__ import annotations
 
 from contextvars import ContextVar
-from typing import Optional
 from uuid import uuid4
 
-
-_correlation_id: ContextVar[Optional[str]] = ContextVar("correlation_id", default=None)
-_user_id: ContextVar[Optional[str]] = ContextVar("user_id", default=None)
-_request_id: ContextVar[Optional[str]] = ContextVar("request_id", default=None)
+_correlation_id: ContextVar[str | None] = ContextVar("correlation_id", default=None)
+_user_id: ContextVar[str | None] = ContextVar("user_id", default=None)
+_request_id: ContextVar[str | None] = ContextVar("request_id", default=None)
 
 
 def set_correlation_id(correlation_id: str) -> None:
     _correlation_id.set(correlation_id)
 
 
-def get_correlation_id() -> Optional[str]:
+def get_correlation_id() -> str | None:
     return _correlation_id.get()
 
 
@@ -40,7 +39,7 @@ def set_user_id(user_id: str) -> None:
     _user_id.set(user_id)
 
 
-def get_user_id() -> Optional[str]:
+def get_user_id() -> str | None:
     return _user_id.get()
 
 
@@ -48,7 +47,7 @@ def set_request_id(request_id: str) -> None:
     _request_id.set(request_id)
 
 
-def get_request_id() -> Optional[str]:
+def get_request_id() -> str | None:
     return _request_id.get()
 
 
@@ -63,17 +62,17 @@ class LogContext:
 
     def __init__(
         self,
-        correlation_id: Optional[str] = None,
-        user_id: Optional[str] = None,
-        request_id: Optional[str] = None,
+        correlation_id: str | None = None,
+        user_id: str | None = None,
+        request_id: str | None = None,
     ) -> None:
         self.correlation_id = correlation_id or generate_correlation_id()
         self.user_id = user_id
         self.request_id = request_id
 
-        self._prev_correlation_id: Optional[str] = None
-        self._prev_user_id: Optional[str] = None
-        self._prev_request_id: Optional[str] = None
+        self._prev_correlation_id: str | None = None
+        self._prev_user_id: str | None = None
+        self._prev_request_id: str | None = None
 
     def __enter__(self):
         self._prev_correlation_id = get_correlation_id()

@@ -22,9 +22,8 @@ Metrics Exposed:
 Author: GitHub Copilot
 Date: 2026-01-08
 """
-from __future__ import annotations
 
-from typing import Dict
+from __future__ import annotations
 
 from prometheus_client import Counter, Gauge, Histogram
 
@@ -78,11 +77,13 @@ class VectorStoreMetrics(MetricCollector):
             "Number of memories in store",
         )
 
-    def collect(self) -> Dict[str, float]:
+    def collect(self) -> dict[str, float]:
         """Collect vector store gauges."""
         return {
             "store_size": self._require(self.store_size, "store_size")._value.get(),
-            "memory_count": self._require(self.memory_count, "memory_count")._value.get(),
+            "memory_count": self._require(
+                self.memory_count, "memory_count"
+            )._value.get(),
         }
 
     def observe_embedding_time(self, seconds: float, status: str) -> None:
@@ -90,7 +91,9 @@ class VectorStoreMetrics(MetricCollector):
         if seconds < 0:
             raise ValueError("Duration cannot be negative")
         self._require(self.embedding_time, "embedding_time").observe(seconds)
-        self._require(self.embeddings_generated, "embeddings_generated").labels(status=status).inc()
+        self._require(self.embeddings_generated, "embeddings_generated").labels(
+            status=status
+        ).inc()
 
     def observe_search_time(self, seconds: float, status: str) -> None:
         """Record vector search duration."""

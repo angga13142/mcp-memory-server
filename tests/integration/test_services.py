@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.models import ProjectBrief, Task
+from src.models import ProjectBrief
 from src.services.memory_service import MemoryService
 
 
@@ -15,7 +15,7 @@ class TestMemoryServiceIntegration:
         # Initially no brief
         brief = await memory_service.get_project_brief()
         assert brief is None
-        
+
         # Create brief
         new_brief = ProjectBrief(
             name="Integration Test",
@@ -23,7 +23,7 @@ class TestMemoryServiceIntegration:
             goals=["Test all operations"],
         )
         await memory_service.save_project_brief(new_brief)
-        
+
         # Retrieve and verify
         retrieved = await memory_service.get_project_brief()
         assert retrieved is not None
@@ -38,7 +38,7 @@ class TestMemoryServiceIntegration:
             related_files=["test.py", "conftest.py"],
             notes="Running integration tests",
         )
-        
+
         # Retrieve and verify
         context = await memory_service.get_active_context()
         assert context.current_task == "Testing"
@@ -55,18 +55,18 @@ class TestMemoryServiceIntegration:
             rationale="It integrates well with async code",
             tags=["testing", "quality"],
         )
-        
+
         assert decision.id is not None
-        
+
         # List all decisions
         all_decisions = await memory_service.list_decisions()
         assert len(all_decisions) >= 1
-        
+
         # Get specific decision
         retrieved = await memory_service.get_decision(decision.id)
         assert retrieved is not None
         assert retrieved.title == "Use Integration Tests"
-        
+
         # Get recent decisions
         recent = await memory_service.recent_decisions(3)
         assert len(recent) >= 1
@@ -81,21 +81,21 @@ class TestMemoryServiceIntegration:
             priority="high",
             tags=["testing"],
         )
-        
+
         assert task.id is not None
         assert task.status == "next"
-        
+
         # Update status to doing
         updated = await memory_service.update_task_status(task.id, "doing")
         assert updated is not None
         assert updated.status == "doing"
-        
+
         # Complete task
         completed = await memory_service.update_task_status(task.id, "done")
         assert completed is not None
         assert completed.status == "done"
         assert completed.completed_at is not None
-        
+
         # Get grouped tasks
         grouped = await memory_service.get_tasks_grouped()
         assert "done" in grouped
@@ -110,9 +110,9 @@ class TestMemoryServiceIntegration:
             content_type="note",
             tags=["test", "search"],
         )
-        
+
         assert entry.id is not None
-        
+
         # Retrieve memory
         retrieved = await memory_service.get_memory(entry.id)
         assert retrieved is not None
@@ -140,10 +140,10 @@ class TestSearchServiceIntegration:
             content="ChromaDB is a vector database",
             tags=["database"],
         )
-        
+
         # Search
         results = await search_service.search("vector database", limit=2)
-        
+
         assert len(results) >= 1
         # The ChromaDB entry should be most relevant
         assert any("ChromaDB" in r.get("content", "") for r in results)

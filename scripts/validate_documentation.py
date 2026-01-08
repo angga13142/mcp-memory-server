@@ -83,7 +83,7 @@ class DocumentationValidator:
         
         required_files = [
             'INDEX.md',
-            'README. md',
+            'README.md',
             'operator-guide.md',
             'developer-guide.md',
             'runbook.md',

@@ -1,14 +1,17 @@
 """Data sanitization helpers for logs and metrics."""
+
 from __future__ import annotations
 
+import logging
 import re
-from typing import Any, Dict, List, Pattern
+from re import Pattern
+from typing import Any
 
 
 class DataSanitizer:
     """Sanitize sensitive data from text structures."""
 
-    SENSITIVE_PATTERNS: List[Pattern[str]] = [
+    SENSITIVE_PATTERNS: list[Pattern[str]] = [
         re.compile(r"password[\"\s:=]+[\"']?([^\"'\s]+)", re.IGNORECASE),
         re.compile(r"api[_-]?key[\"\s:=]+[\"']?([^\"'\s]+)", re.IGNORECASE),
         re.compile(r"secret[\"\s:=]+[\"']?([^\"'\s]+)", re.IGNORECASE),
@@ -28,8 +31,8 @@ class DataSanitizer:
         return result
 
     @classmethod
-    def sanitize_dict(cls, data: Dict[str, Any]) -> Dict[str, Any]:
-        sanitized: Dict[str, Any] = {}
+    def sanitize_dict(cls, data: dict[str, Any]) -> dict[str, Any]:
+        sanitized: dict[str, Any] = {}
         for key, value in data.items():
             if cls._is_sensitive_key(key):
                 sanitized[key] = cls.REDACTION_TEXT
@@ -39,9 +42,13 @@ class DataSanitizer:
                 sanitized[key] = cls.sanitize_dict(value)
             elif isinstance(value, list):
                 sanitized[key] = [
-                    cls.sanitize_dict(item) if isinstance(item, dict)
-                    else cls.sanitize_string(item) if isinstance(item, str)
-                    else item
+                    (
+                        cls.sanitize_dict(item)
+                        if isinstance(item, dict)
+                        else (
+                            cls.sanitize_string(item) if isinstance(item, str) else item
+                        )
+                    )
                     for item in value
                 ]
             else:

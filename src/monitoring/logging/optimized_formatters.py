@@ -1,9 +1,10 @@
 """Optimized logging helpers for buffered and lazy JSON formatting."""
+
 from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 
 class LazyJsonFormatter(logging.Formatter):
@@ -19,7 +20,7 @@ class LazyJsonFormatter(logging.Formatter):
         return record.levelno >= logger.level
 
     def _format_json(self, record: logging.LogRecord) -> str:
-        log_data: Dict[str, Any] = {
+        log_data: dict[str, Any] = {
             "@timestamp": record.created,
             "level": record.levelname,
             "message": record.getMessage(),
@@ -34,7 +35,7 @@ class BufferedJsonHandler(logging.Handler):
         super().__init__()
         self.base_handler = base_handler
         self.buffer_size = buffer_size
-        self._buffer: List[logging.LogRecord] = []
+        self._buffer: list[logging.LogRecord] = []
 
     def emit(self, record: logging.LogRecord) -> None:
         self._buffer.append(record)

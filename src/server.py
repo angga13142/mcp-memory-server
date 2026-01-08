@@ -11,6 +11,8 @@ from typing import Any
 
 from fastmcp import FastMCP, Context
 
+from contextlib import asynccontextmanager
+from prometheus_client import make_asgi_app
 from src.middleware.auth import http_auth_middleware
 from src.middleware.rate_limit import limiter, rate_limit_exceeded_handler
 from src.models import (
@@ -24,13 +26,59 @@ from src.models.project import TechStackItem
 from src.services.service_manager import ServiceManager
 from src.utils.config import Settings, get_settings
 from src.utils.logger import get_logger
+from src.monitoring.collectors import system_metrics_collector
 
 logger = get_logger(__name__)
+
+
+@asynccontextmanager
+async def server_lifespan(server: FastMCP):
+    """Server lifespan manager."""
+    logger.info("Starting MCP Memory Server...")
+    
+    # Expose metrics endpoint
+    # We use a separate port (8081) to avoid conflicts with FastMCP internal routing
+    # and to ensure metrics are always accessible regardless of transport.
+    try:
+        from prometheus_client import start_http_server
+        import threading
+        
+        # Start metrics server on 8081 in a daemon thread
+        logger.info("Starting Prometheus metrics server on port 8081")
+        start_http_server(8081)
+        logger.info("Metrics exposed at http://localhost:8081")
+    except Exception as e:
+        logger.error(f"Failed to start metrics server: {e}")
+        try:
+            # Fallback: Start metrics server on side port
+            from prometheus_client import start_http_server
+            import threading
+            
+            # Start metrics server on 8081 in a daemon thread
+            # Port 9090 is usually Prometheus itself
+            logger.info("Starting Prometheus metrics server on port 8081")
+            start_http_server(8081)
+            metrics_mounted = True
+        except Exception as e:
+            logger.error(f"Failed to start fallback metrics server: {e}")
+
+    # Initialize services
+    await get_services()
+    
+    # Start background tasks
+    await system_metrics_collector.start()
+    
+    yield
+    
+    # Shutdown logic
+    logger.info("Stopping MCP Memory Server...")
+    await system_metrics_collector.stop()
 
 # Initialize FastMCP server
 mcp = FastMCP(
     name="memory-server",
     version="1.0.0",
+    lifespan=server_lifespan,
 )
 
 # Global service manager instance
