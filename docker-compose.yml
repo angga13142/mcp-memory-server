@@ -5,50 +5,97 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: mcp-memory-server
-    ports:
-      - "8080:8080"
-    volumes:
-      # Persist data across container restarts
-      - memory-data:/app/data
-      # Mount config for easy updates (development)
-      - ./config.yaml:/app/config.yaml:ro
-    environment:
-      - LOG_LEVEL=INFO
-      - MEMORY_SERVER__SERVER__LOG_LEVEL=INFO
-      # Set API key for authentication (optional)
-      # - MCP_API_KEY=your-secure-api-key
-      # Configure CORS origins (optional)
-      # - MEMORY_SERVER__TRANSPORT__HTTP__CORS_ORIGINS=https://yourdomain.com
+      args:
+        ENVIRONMENT: development
+    image: mcp-memory-server:dev
+    container_name: mcp-memory-dev
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "python", "src/health_check.py"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  # Development service with hot reload
-  memory-server-dev:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: mcp-memory-server-dev
-    ports:
-      - "8081:8080"
-    volumes:
-      # Mount source for development
-      - ./src:/app/src:ro
-      - ./config.yaml:/app/config.yaml:ro
-      - memory-dev-data:/app/data
+    
     environment:
       - LOG_LEVEL=DEBUG
       - MEMORY_SERVER__SERVER__LOG_LEVEL=DEBUG
-    profiles:
-      - dev
-    restart: "no"
+      - MEMORY_SERVER__STORAGE__SQLITE__DATABASE_URL=sqlite+aiosqlite:///./data/memory.db
+      - MEMORY_SERVER__STORAGE__SQLITE__ECHO=false
+      - MEMORY_SERVER__STORAGE__CHROMA__PERSIST_DIRECTORY=/app/data/chroma_db
+      - MEMORY_SERVER__PERSONAL__JOURNAL__ENABLED=true
+      - MEMORY_SERVER__PERSONAL__JOURNAL__AUTO_REFLECTION=true
+      - MEMORY_SERVER__PERSONAL__JOURNAL__MIN_SESSION_MINUTES=5
+      - MEMORY_SERVER__PERFORMANCE__CACHE_ENABLED=false
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    
+    ports:
+      - "8080:8080"
+    
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config.yaml:/app/config.yaml:ro
+    
+    depends_on:
+      redis:
+        condition: service_healthy
+    
+    healthcheck:
+      test: ["CMD", "python", "scripts/health_check.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    networks:
+      - mcp-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: mcp-redis-dev
+    restart: unless-stopped
+    
+    command: redis-server --appendonly yes
+    
+    ports:
+      - "6379:6379"
+    
+    volumes:
+      - redis-data:/data
+    
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    
+    networks:
+      - mcp-network
 
 volumes:
+  redis-data:
+    driver: local
+
+networks:
+  mcp-network:
+    driver: bridge
   memory-data:
     name: mcp-memory-data
   memory-dev-data:

@@ -1,5 +1,6 @@
 """SQLAlchemy database setup and session management."""
 
+import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -7,9 +8,9 @@ from typing import Any, AsyncGenerator
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import JSON, Column, DateTime, Integer, String, Text, event
+from sqlalchemy import JSON, Column, DateTime, Integer, String, Text, event, Date, ForeignKey
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, relationship
 
 from src.utils.config import Settings, get_settings
 from src.utils.logger import get_logger
@@ -79,8 +80,8 @@ class ActiveContextDB(Base):
     related_files = Column(JSON, default=list)
     relevant_decisions = Column(JSON, default=list)
     notes = Column(Text, default="")
-    working_branch = Column(String(255), deflambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    version = Column(Integer, default=0, nullable=False
+    working_branch = Column(String(255), default="")
+    version = Column(Integer, default=0, nullable=False)
     session_id = Column(String(100), default="")
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -131,6 +132,63 @@ class SystemPatternDB(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class DailyJournalDB(Base):
+    """Daily journal database table."""
+    
+    __tablename__ = "daily_journals"
+    
+    id = Column(String(50), primary_key=True)
+    date = Column(Date, nullable=False, unique=True)
+    morning_intention = Column(Text, default="")
+    end_of_day_reflection = Column(Text, default="")
+    energy_level = Column(Integer, default=3)
+    mood = Column(String(50), default="")
+    wins = Column(JSON, default=list)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    # Relationship
+    work_sessions = relationship("WorkSessionDB", back_populates="journal", cascade="all, delete-orphan")
+
+
+class WorkSessionDB(Base):
+    """Work session database table."""
+    
+    __tablename__ = "work_sessions"
+    
+    id = Column(String(50), primary_key=True)
+    journal_id = Column(String(50), ForeignKey('daily_journals.id', ondelete='CASCADE'))
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime, nullable=True)
+    task = Column(String(500), nullable=False)
+    files_touched = Column(JSON, default=list)
+    decisions_made = Column(JSON, default=list)
+    notes = Column(Text, default="")
+    learnings = Column(JSON, default=list)
+    challenges = Column(JSON, default=list)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    # Relationship
+    journal = relationship("DailyJournalDB", back_populates="work_sessions")
+    reflection = relationship("SessionReflectionDB", back_populates="session", uselist=False, cascade="all, delete-orphan")
+
+
+class SessionReflectionDB(Base):
+    """Session reflection database table."""
+    
+    __tablename__ = "session_reflections"
+    
+    id = Column(String(50), primary_key=True)
+    session_id = Column(String(50), ForeignKey('work_sessions.id', ondelete='CASCADE'))
+    reflection_text = Column(Text, nullable=False)
+    key_insights = Column(JSON, default=list)
+    related_memories = Column(JSON, default=list)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    # Relationship
+    session = relationship("WorkSessionDB", back_populates="reflection")
+
+
 # === Database Manager ===
 
 
@@ -148,8 +206,13 @@ class Database:
             alembic_cfg = Config("alembic.ini")
             alembic_cfg.set_main_option("sqlalchemy.url", self.settings.storage.sqlite.database_url)
             
-            # Run migrations to head
-            command.upgrade(alembic_cfg, "head")
+            # Run migrations to head in separate thread
+            await asyncio.get_running_loop().run_in_executor(
+                None,
+                command.upgrade,
+                alembic_cfg,
+                "head"
+            )
             logger.info("Database migrations completed")
         except Exception as e:
             logger.warning(f"Migration error (tables may already exist): {e}")

@@ -2,6 +2,7 @@
 
 from src.services.memory_service import MemoryService
 from src.services.search_service import SearchService
+from src.services.journal_service import JournalService
 from src.storage.database import Database
 from src.storage.vector_store import VectorMemoryStore
 from src.utils.config import Settings
@@ -18,6 +19,7 @@ class ServiceManager:
         self._vector: VectorMemoryStore | None = None
         self._memory: MemoryService | None = None
         self._search: SearchService | None = None
+        self._journal: JournalService | None = None
         self._initialized = False
 
     async def initialize(self, settings: Settings) -> None:
@@ -37,9 +39,14 @@ class ServiceManager:
         self._vector = VectorMemoryStore(settings)
         await self._vector.init()
 
+        self._memory: MemoryService | None = None
+        self._search: SearchService | None = None
+        self._journal: JournalService | None = None
+        
         # Initialize services
         self._memory = MemoryService(self._db, self._vector)
         self._search = SearchService(self._vector)
+        self._journal = JournalService(self._db, self._vector, self._search)
 
         self._initialized = True
         logger.info("ServiceManager initialized")
@@ -54,18 +61,19 @@ class ServiceManager:
         self._vector = None
         self._memory = None
         self._search = None
+        self._journal = None
         self._initialized = False
         logger.info("ServiceManager cleanup complete")
 
-    def get_services(self) -> tuple[MemoryService, SearchService]:
-        """Get memory and search services.
+    def get_services(self) -> tuple[MemoryService, SearchService, JournalService]:
+        """Get memory, search and journal services.
 
         Returns:
-            Tuple of (MemoryService, SearchService)
+            Tuple of (MemoryService, SearchService, JournalService)
 
         Raises:
             RuntimeError: If services not initialized
         """
-        if not self._initialized or not self._memory or not self._search:
+        if not self._initialized or not self._memory or not self._search or not self._journal:
             raise RuntimeError("Services not initialized. Call initialize() first.")
-        return self._memory, self._search
+        return self._memory, self._search, self._journal

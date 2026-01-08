@@ -29,3 +29,19 @@ memory:
   retention_days: 90
   max_decisions: 1000
   max_tasks: 500
+
+# Personal features
+personal:
+  # Daily journal
+  journal:
+    enabled: true
+    auto_reflection: true  # Generate reflections automatically
+    min_session_minutes: 30  # Minimum session length for reflection
+    reflection_length: 150  # Max tokens for reflection
+    summary_length: 200  # Max tokens for daily summary
+    
+  # Work session tracking
+  session_tracking:
+    auto_capture_files: true  # Auto-detect files being worked on
+    require_end_session: false  # Allow overlapping sessions
+    idle_timeout_minutes: 120  # Auto-end session after inactivity

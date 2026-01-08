@@ -1,0 +1,132 @@
+version: '3.8'
+
+services:
+  mcp-memory-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ENVIRONMENT: production
+    image: mcp-memory-server:${VERSION:-latest}
+    container_name: mcp-memory-prod
+    restart: always
+    
+    environment:
+      - LOG_LEVEL=INFO
+      - MEMORY_SERVER__SERVER__LOG_LEVEL=INFO
+      - MEMORY_SERVER__SERVER__LOG_FORMAT=json
+      - MEMORY_SERVER__SERVER__LOG_FILE=/app/logs/server.log
+      - MEMORY_SERVER__STORAGE__SQLITE__DATABASE_URL=sqlite+aiosqlite:///./data/memory.db
+      - MEMORY_SERVER__STORAGE__SQLITE__ECHO=false
+      - MEMORY_SERVER__STORAGE__SQLITE__POOL_SIZE=20
+      - MEMORY_SERVER__STORAGE__SQLITE__MAX_OVERFLOW=40
+      - MEMORY_SERVER__STORAGE__CHROMA__PERSIST_DIRECTORY=/app/data/chroma_db
+      - MEMORY_SERVER__PERSONAL__JOURNAL__ENABLED=true
+      - MEMORY_SERVER__PERSONAL__JOURNAL__AUTO_REFLECTION=true
+      - MEMORY_SERVER__PERSONAL__JOURNAL__MIN_SESSION_MINUTES=30
+      - MEMORY_SERVER__PERFORMANCE__CACHE_ENABLED=true
+      - MEMORY_SERVER__PERFORMANCE__CACHE_TTL=600
+      - MEMORY_SERVER__PERFORMANCE__MAX_DB_CONNECTIONS=20
+      - MEMORY_SERVER__RETENTION__DAYS=365
+      - MEMORY_SERVER__RETENTION__AUTO_CLEANUP=true
+      - MEMORY_SERVER__RETENTION__ARCHIVE_OLD=true
+      - MEMORY_SERVER__AUTH__API_KEY=${MCP_API_KEY}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    
+    ports:
+      - "8080:8080"
+    
+    volumes:
+      - /var/mcp-data:/app/data
+      - /var/mcp-logs:/app/logs
+      - ./config.prod.yaml:/app/config.yaml:ro
+    
+    depends_on:
+      redis:
+        condition: service_healthy
+    
+    healthcheck:
+      test: ["CMD", "python", "scripts/health_check.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 1G
+      
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "7"
+        compress: "true"
+    
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=100M
+    
+    networks:
+      - mcp-prod-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: mcp-redis-prod
+    restart: always
+    
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    
+    ports:
+      - "127.0.0.1:6379:6379"
+    
+    volumes:
+      - /var/mcp-redis:/data
+    
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    networks:
+      - mcp-prod-network
+
+networks:
+  mcp-prod-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

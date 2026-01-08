@@ -1,7 +1,7 @@
 """Repository layer for database operations."""
 
-from datetime import datetime
-from typing import Any
+from datetime import datetime, timezone, timedelta
+from typing import Any, Optional, TypeVar, Generic
 
 from sqlalchemy import select, update, delete
 from sqlalchemy.exc import IntegrityError
@@ -16,6 +16,8 @@ from src.models import (
     TechStack,
 )
 from src.models.project import SystemPattern, SystemPatterns, TechStackItem
+from src.models.journal import DailyJournal, WorkSession, SessionReflection
+from src.models.journal import generate_id
 from src.storage.database import (
     ActiveContextDB,
     DecisionDB,
@@ -24,6 +26,9 @@ from src.storage.database import (
     SystemPatternDB,
     TaskDB,
     TechStackDB,
+    DailyJournalDB,
+    WorkSessionDB,
+    SessionReflectionDB,
 )
 from src.utils.logger import get_logger
 
@@ -443,8 +448,6 @@ class MemoryEntryRepository:
         )
         return result.rowcount > 0
 
-    def _to_model(self, row: MemoryEntryDB) -> MemoryEntry:
-        """Convert DB row to Pydantic model."""
         return MemoryEntry(
             id=row.id,
             content=row.content,
@@ -454,4 +457,203 @@ class MemoryEntryRepository:
             tags=row.tags or [],
             created_at=row.created_at,
             updated_at=row.updated_at,
+        )
+
+
+class JournalRepository:
+    """Repository for journal operations."""
+    
+    def __init__(self, session: AsyncSession):
+        self.session = session
+    
+    async def get_or_create_today(self) -> DailyJournal: 
+        """Get today's journal or create if doesn't exist."""
+        today = datetime.now(timezone.utc).date()
+        
+        result = await self.session.execute(
+            select(DailyJournalDB).where(DailyJournalDB.date == today)
+        )
+        db_journal = result.scalar_one_or_none()
+        
+        if not db_journal:
+            # Create new journal for today
+            db_journal = DailyJournalDB(
+                id=generate_id(),
+                date=today
+            )
+            self.session.add(db_journal)
+            await self.session.flush()
+        
+        return await self._to_model(db_journal)
+    
+    async def get_by_date(self, date: datetime.date) -> DailyJournal | None:
+        """Get journal for specific date."""
+        result = await self.session.execute(
+            select(DailyJournalDB).where(DailyJournalDB.date == date)
+        )
+        db_journal = result.scalar_one_or_none()
+        
+        if db_journal:
+            return await self._to_model(db_journal)
+        return None
+    
+    async def save(self, journal: DailyJournal) -> DailyJournal:
+        """Save or update journal."""
+        result = await self.session.execute(
+            select(DailyJournalDB).where(DailyJournalDB.date == journal.date)
+        )
+        existing = result.scalar_one_or_none()
+        
+        if existing:
+            # Update existing
+            existing.morning_intention = journal.morning_intention
+            existing.end_of_day_reflection = journal.end_of_day_reflection
+            existing.energy_level = journal.energy_level
+            existing.mood = journal.mood
+            existing.wins = journal.wins
+            existing.updated_at = datetime.now(timezone.utc)
+        else:
+            # Create new
+            db_journal = DailyJournalDB(
+                id=journal.id,
+                date=journal.date,
+                morning_intention=journal.morning_intention,
+                end_of_day_reflection=journal.end_of_day_reflection,
+                energy_level=journal.energy_level,
+                mood=journal.mood,
+                wins=journal.wins,
+                created_at=journal.created_at,
+                updated_at=journal.updated_at
+            )
+            self.session.add(db_journal)
+        
+        return journal
+    
+    async def add_session(self, journal_id: str, session: WorkSession) -> WorkSession:
+        """Add work session to journal."""
+        db_session = WorkSessionDB(
+            id=session.id,
+            journal_id=journal_id,
+            start_time=session.start_time,
+            end_time=session.end_time,
+            task=session.task,
+            files_touched=session.files_touched,
+            decisions_made=session.decisions_made,
+            notes=session.notes,
+            learnings=session.learnings,
+            challenges=session.challenges,
+            created_at=session.start_time
+        )
+        self.session.add(db_session)
+        await self.session.flush()
+        
+        return session
+    
+    async def update_session(self, session: WorkSession) -> WorkSession:
+        """Update existing work session."""
+        result = await self.session.execute(
+            select(WorkSessionDB).where(WorkSessionDB.id == session.id)
+        )
+        db_session = result.scalar_one_or_none()
+        
+        if db_session: 
+            db_session.end_time = session.end_time
+            db_session.files_touched = session.files_touched
+            db_session.decisions_made = session.decisions_made
+            db_session.notes = session.notes
+            db_session.learnings = session.learnings
+            db_session.challenges = session.challenges
+        
+        return session
+    
+    async def save_reflection(self, reflection: SessionReflection) -> SessionReflection:
+        """Save session reflection."""
+        db_reflection = SessionReflectionDB(
+            id=generate_id(),
+            session_id=reflection.session_id,
+            reflection_text=reflection.reflection_text,
+            key_insights=reflection.key_insights,
+            related_memories=reflection.related_memories,
+            created_at=reflection.created_at
+        )
+        self.session.add(db_reflection)
+        await self.session.flush()
+        
+        return reflection
+    
+    async def get_sessions_by_date(self, date: datetime.date) -> list[WorkSession]:
+        """Get all sessions for a specific date."""
+        result = await self.session.execute(
+            select(WorkSessionDB)
+            .join(DailyJournalDB)
+            .where(DailyJournalDB.date == date)
+            .order_by(WorkSessionDB.start_time)
+        )
+        db_sessions = result.scalars().all()
+        
+        return [self._session_to_model(s) for s in db_sessions]
+    
+    async def get_recent_journals(self, days: int = 7) -> list[DailyJournal]: 
+        """Get journals for recent days."""
+        from datetime import timedelta
+        start_date = datetime.now(timezone.utc).date() - timedelta(days=days)
+        
+        result = await self.session.execute(
+            select(DailyJournalDB)
+            .where(DailyJournalDB.date >= start_date)
+            .order_by(DailyJournalDB.date.desc())
+        )
+        db_journals = result.scalars().all()
+        
+        journals = []
+        for db_journal in db_journals:
+            journals.append(await self._to_model(db_journal))
+        
+        return journals
+    
+    def _ensure_utc(self, dt: datetime | None) -> datetime | None:
+        """Ensure datetime is timezone-aware UTC."""
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt
+
+    async def _to_model(self, db_journal: DailyJournalDB) -> DailyJournal:
+        """Convert DB model to Pydantic model."""
+        # Load sessions
+        result = await self.session.execute(
+            select(WorkSessionDB)
+            .where(WorkSessionDB.journal_id == db_journal.id)
+            .order_by(WorkSessionDB.start_time)
+        )
+        db_sessions = result.scalars().all()
+        
+        sessions = [self._session_to_model(s) for s in db_sessions]
+        
+        return DailyJournal(
+            id=db_journal.id,
+            date=db_journal.date,
+            morning_intention=db_journal.morning_intention or "",
+            work_sessions=sessions,
+            end_of_day_reflection=db_journal.end_of_day_reflection or "",
+            energy_level=db_journal.energy_level or 3,
+            mood=db_journal.mood or "",
+            wins=db_journal.wins or [],
+            created_at=self._ensure_utc(db_journal.created_at),
+            updated_at=self._ensure_utc(db_journal.updated_at)
+        )
+    
+    def _session_to_model(self, db_session: WorkSessionDB) -> WorkSession:
+        """Convert DB session to Pydantic model."""
+        return WorkSession(
+            id=db_session.id,
+            start_time=self._ensure_utc(db_session.start_time),
+            end_time=self._ensure_utc(db_session.end_time),
+            task=db_session.task,
+            files_touched=db_session.files_touched or [],
+            decisions_made=db_session.decisions_made or [],
+            notes=db_session.notes or "",
+            learnings=db_session.learnings or [],
+            challenges=db_session.challenges or []
         )
